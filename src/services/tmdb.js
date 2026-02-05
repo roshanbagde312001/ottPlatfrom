@@ -163,6 +163,11 @@ export const searchMulti = async (query, page = 1) => {
   })
 }
 
+// Search TV show by ID for detailed info (uses /tv/{id} endpoint)
+export const searchTVShow = async (tvId) => {
+  return fetchFromTMDB(API_ENDPOINTS.TV_DETAILS(tvId))
+}
+
 // ============ DISCOVER APIs ============
 
 // Discover movies by genre, year, rating, etc.

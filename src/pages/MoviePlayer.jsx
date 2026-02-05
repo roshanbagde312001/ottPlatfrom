@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FiArrowLeft, FiExternalLink, FiMonitor, FiPlay } from 'react-icons/fi'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Skeleton } from '../components/ui/Skeleton'
 import * as tmdbService from '../services/tmdb'
 import { STREAMING_TYPES } from '../utils/constants'
@@ -26,10 +26,10 @@ const MANUAL_IMDB_PROVIDER = {
 
 // Movie Player Page - Watch full movies with streaming options
 const MoviePlayerPage = () => {
-  const { type = 'movie', id } = useParams()
+  const location  = useLocation()
+  const { type=location.pathname.split("/")[[1]], id } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  
   // Get season and episode from URL params
   const urlSeason = searchParams.get('season')
   const urlEpisode = searchParams.get('episode')
@@ -43,8 +43,9 @@ const MoviePlayerPage = () => {
   const [vidsrcSeason, setVidsrcSeason] = useState(() => urlSeason ? Number(urlSeason) : 1)
   const [vidsrcEpisode, setVidsrcEpisode] = useState(() => urlEpisode ? Number(urlEpisode) : 1)
   const [watchError, setWatchError] = useState(null)
-  const [manualImdbId, setManualImdbId] = useState('')
+  const [manualImdbId, setManualImdbId] = useState(id)
   const [showManualInput, setShowManualInput] = useState(false)
+  
   
   useEffect(() => {
     const fetchData = async () => {
@@ -55,7 +56,7 @@ const MoviePlayerPage = () => {
         
         // Fetch movie details and providers in parallel
         const [movieData, providersData] = await Promise.all([
-          type === 'tv' ? tmdbService.getTVDetails(id) : tmdbService.getMovieDetails(id),
+          location.pathname.includes('tv') ? tmdbService.getTVDetails(id) : tmdbService.getMovieDetails(id),
           tmdbService.getFreeWatchProviders(id, type),
         ])
         
@@ -63,7 +64,7 @@ const MoviePlayerPage = () => {
         setProviders(providersData)
         
         // Set default season/episode for TV shows
-        if (type === 'tv') {
+        if (location.pathname.includes('tv')) {
           // Use URL params if available, otherwise find first valid season
           const seasonParam = searchParams.get('season')
           const episodeParam = searchParams.get('episode')
@@ -245,7 +246,7 @@ const MoviePlayerPage = () => {
             </div>
             
             {/* TV Show Season/Episode Selector */}
-            {(type === 'tv') && (
+            {(location.pathname.includes('tv')) && (
               <div className="flex gap-4 mb-4">
                 <select
                   value={vidsrcSeason}
@@ -375,7 +376,7 @@ const MoviePlayerPage = () => {
               )}
               
               {/* Manual IMDB Fallback - When IMDB ID is missing */}
-              {!movie.imdb_id && type === 'tv' && (
+              {!movie.imdb_id && location.pathname.includes('tv') && (
                 <section>
                   <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                     <FiPlay className="text-yellow-500" />
@@ -572,7 +573,7 @@ const VidsrcmeCard = ({ movie, type, onClick, selected }) => {
       
       {/* Info */}
       <p className="text-gray-400 text-xs text-center mt-2">
-        {type === 'tv' ? `${movie.number_of_seasons || 0} Seasons` : 'Full Movie'}
+        {location.pathname.includes('tv') ? `${movie.number_of_seasons || 0} Seasons` : 'Full Movie'}
       </p>
     </button>
   )

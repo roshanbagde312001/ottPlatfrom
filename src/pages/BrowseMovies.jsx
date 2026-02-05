@@ -45,16 +45,39 @@ const BrowseMoviesPage = () => {
           setMovies(movieResults.results || [])
           setTvShows([])
         } else if (searchType === 'tv') {
-          // For TV shows, filter from multi search results
+          // For TV shows, filter from multi search results and fetch detailed info
+          const tvResultsFromMulti = multiResults.results?.filter(item => item.media_type === 'tv') || []
+          
+          // Fetch detailed TV show info using /tv/{id} endpoint for each TV show
+          const tvDetailsPromises = tvResultsFromMulti.map(tv => tmdbService.searchTVShow(tv.id))
+          const tvDetails = await Promise.all(tvDetailsPromises)
+          
+          // Merge detailed info with search results
+          const enrichedTvShows = tvResultsFromMulti.map((tv, index) => ({
+            ...tv,
+            ...tvDetails[index], // Complete TV show data from /tv/{id}
+            media_type: 'tv', // Ensure media_type is set correctly
+          }))
+          
           setMovies([])
-          setTvShows(multiResults.results?.filter(item => item.media_type === 'tv') || [])
+          setTvShows(enrichedTvShows)
         } else {
           // All - combine results from both APIs
           const allMovies = movieResults.results || []
-          const allTv = multiResults.results?.filter(item => item.media_type === 'tv') || []
+          const allTvFromMulti = multiResults.results?.filter(item => item.media_type === 'tv') || []
+          
+          // Fetch detailed TV show info using /tv/{id} endpoint
+          const tvDetailsPromises = allTvFromMulti.map(tv => tmdbService.searchTVShow(tv.id))
+          const tvDetails = await Promise.all(tvDetailsPromises)
+          
+          const enrichedTvShows = allTvFromMulti.map((tv, index) => ({
+            ...tv,
+            ...tvDetails[index],
+            media_type: 'tv',
+          }))
           
           // Merge and sort by popularity
-          const combined = [...allMovies, ...allTv]
+          const combined = [...allMovies, ...enrichedTvShows]
             .sort((a, b) => b.popularity - a.popularity)
           
           setMovies(combined)

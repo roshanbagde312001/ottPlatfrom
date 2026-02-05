@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FiCalendar, FiClock, FiFilm, FiHeart, FiPlay, FiPlus, FiShare2, FiTv, FiUser } from 'react-icons/fi'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { Carousel } from '../components/movie/Carousel'
 import { RatingBadge } from '../components/ui/Rating'
 import { PageLoader } from '../components/ui/Skeleton'
@@ -11,7 +11,9 @@ import { formatRuntime, getGenreNames, getImageUrl, getYear, truncateText } from
 
 // Movie Details Page
 const MovieDetailsPage = () => {
-  const { type = 'movie', id } = useParams()
+  
+  const location = useLocation()
+  const { type= location.pathname.split("/")[[1]] , id } = useParams()
   const [details, setDetails] = useState(null)
   const [credits, setCredits] = useState(null)
   const [videos, setVideos] = useState(null)
@@ -25,13 +27,15 @@ const MovieDetailsPage = () => {
   const inWatchlist = details && type !== 'person' ? isInWatchlist(details.id) : false
   
   useEffect(() => {
+
+    let pathname  = location.pathname
     const fetchData = async () => {
       setLoading(true)
       setError(null)
       
       try {
         // Handle person/actor type
-        if (type === 'person') {
+        if (pathname.includes("person") === 'person') {
           const personDetails = await tmdbService.getPersonDetails(id)
           const [movieCreditsData, tvCreditsData] = await Promise.all([
             tmdbService.getPersonMovieCredits(id),
@@ -45,12 +49,14 @@ const MovieDetailsPage = () => {
           setVideos(null)
           setRecommendations([])
         } else {
+          console.log()
           // Handle movie/TV types
+          console.log(pathname.includes("tv") )
           const [detailsData, creditsData, videosData, recommendationsData] = await Promise.all([
-            type === 'tv' ? tmdbService.getTVDetails(id) : tmdbService.getMovieDetails(id),
-            type === 'tv' ? tmdbService.getTVCredits(id) : tmdbService.getMovieCredits(id),
-            type === 'tv' ? tmdbService.getTVVideos(id) : tmdbService.getMovieVideos(id),
-            type === 'tv' ? tmdbService.getTVRecommendations(id) : tmdbService.getMovieRecommendations(id),
+            pathname.includes("tv") ? tmdbService.getTVDetails(id) : tmdbService.getMovieDetails(id),
+            pathname.includes("tv") ? tmdbService.getTVCredits(id) : tmdbService.getMovieCredits(id),
+            pathname.includes("tv") ? tmdbService.getTVVideos(id) : tmdbService.getMovieVideos(id),
+            pathname.includes("tv") ? tmdbService.getTVRecommendations(id) : tmdbService.getMovieRecommendations(id),
           ])
           
           setDetails(detailsData)
@@ -368,7 +374,7 @@ const MovieDetailsPage = () => {
               {details.status === 'Released' && (
                 <span className="text-green-500 text-sm">Released</span>
               )}
-              {type === 'tv' && details.number_of_seasons && (
+              {location.pathname.includes('tv') && details.number_of_seasons && (
                 <span className="text-gray-400 text-sm">
                   {details.number_of_seasons} Season{details.number_of_seasons !== 1 ? 's' : ''}
                 </span>
@@ -430,7 +436,7 @@ const MovieDetailsPage = () => {
             </div>
             
             {/* TV Show Watch for Free - vidsrc-embed.ru */}
-            {type === 'tv' && details.imdb_id && (
+            {location.pathname.includes('tv') && details.imdb_id && (
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                   <FiPlay className="text-green-500" />
@@ -471,7 +477,7 @@ const MovieDetailsPage = () => {
             {/* Actions */}
             <div className="flex flex-wrap gap-4 mb-8">
               {/* TV Show Season/Episode Selector */}
-              {type === 'tv' && details?.seasons && (
+              {location.pathname.includes('tv') && details?.seasons && (
                 <div className="flex gap-2 w-full sm:w-auto">
                   <select
                     value={selectedSeason}
@@ -497,13 +503,13 @@ const MovieDetailsPage = () => {
                   </select>
                 </div>
               )}
-              
+              {console.log(location.pathname.includes('tv') ? `/watch/${type}/${id}?season=${selectedSeason}&episode=${selectedEpisode}` : `/watch/${type}/${id}`)}
               <Link
-                to={type === 'tv' ? `/watch/${type}/${id}?season=${selectedSeason}&episode=${selectedEpisode}` : `/watch/${type}/${id}`}
+                to={location.pathname.includes('tv') ? `/watch/${type}/${id}?season=${selectedSeason}&episode=${selectedEpisode}` : `/watch/${type}/${id}`}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-netflix-red text-white font-semibold rounded-md hover:bg-red-700 transition-colors"
               >
                 <FiPlay size={20} />
-                {type === 'tv' ? `Watch S${selectedSeason}E${selectedEpisode}` : 'Watch Now'}
+                {location.pathname.includes('tv') ? `Watch S${selectedSeason}E${selectedEpisode}` : 'Watch Now'}
               </Link>
               
               <Link
