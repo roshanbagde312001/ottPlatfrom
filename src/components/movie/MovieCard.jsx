@@ -51,8 +51,12 @@ export const MovieCard = ({ movie, showInfoOnHover = true, size = 'md' }) => {
   const handlePlayClick = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    // Navigate to movie player page
-    navigate(`/watch/${mediaType}/${movie.id}`)
+    // Navigate to movie player page with default season/episode for TV shows
+    if (mediaType === 'tv') {
+      navigate(`/watch/${mediaType}/${movie.id}?season=1&episode=1`)
+    } else {
+      navigate(`/watch/${mediaType}/${movie.id}`)
+    }
   }
   
   return (
@@ -118,8 +122,21 @@ export const MovieCard = ({ movie, showInfoOnHover = true, size = 'md' }) => {
                   leftIcon={<FiPlay size={14} />}
                   className="flex-1"
                 >
-                  Play
+                  {mediaType === 'tv' ? 'Watch' : 'Play'}
                 </Button>
+                {/* Play for Free - vidsrc button for TV shows */}
+                {mediaType === 'tv' && movie.imdb_id && (
+                  <a
+                    href={`https://vidsrcme.ru/embed/tv?imdb=${movie.imdb_id.startsWith('tt') ? movie.imdb_id : `tt${movie.imdb_id}`}&season=1&episode=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition-colors"
+                    title="Play for Free - vidsrc"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <FiPlay size={16} />
+                  </a>
+                )}
                 <button
                   onClick={handleWatchlistClick}
                   className={`
@@ -225,12 +242,12 @@ export const BackdropCard = ({ movie }) => {
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <Link
-              to={`/watch/${movie.media_type || 'movie'}/${movie.id}`}
+              to={movie.media_type === 'tv' ? `/watch/${movie.media_type}/${movie.id}?season=1&episode=1` : `/watch/${movie.media_type || 'movie'}/${movie.id}`}
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-2 px-6 py-3 bg-netflix-red text-white font-semibold rounded-md hover:bg-red-700 transition-colors"
             >
               <FiPlay size={20} />
-              Watch Now
+              {movie.media_type === 'tv' ? 'Watch' : 'Watch Now'}
             </Link>
             
             <Link

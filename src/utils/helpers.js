@@ -245,16 +245,17 @@ export const formatPrice = (price) => {
   return `$${price.toFixed(2)}`
 }
 
-// vidsrcme.ru embed URL generator
+// vidsrc embed URL generator
 export const getVidsrcEmbedUrl = (imdbId, type = 'movie', season = 1, episode = 1) => {
   if (!imdbId) return null
   
   // Ensure IMDB ID format (tt + numbers)
   const formattedId = imdbId.startsWith('tt') ? imdbId : `tt${imdbId}`
+  const unformattedId = imdbId.replace("tt","")
   
   if (type === 'tv') {
-    return `https://vidsrcme.ru/embed/tv?imdb=${formattedId}&season=${season}&episode=${episode}`
+    return `https://vidsrc-embed.ru/embed/tv?tmdb=${unformattedId}&season=${season}&episode=${episode}`
   }
-  return `https://vidsrcme.ru/embed/movie?imdb=${formattedId}`
+  return `https://vidsrc-embed.ru/embed/movie?imdb=${formattedId}`
 }
 

@@ -429,6 +429,45 @@ const MovieDetailsPage = () => {
               )}
             </div>
             
+            {/* TV Show Watch for Free - vidsrc-embed.ru */}
+            {type === 'tv' && details.imdb_id && (
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <FiPlay className="text-green-500" />
+                  Watch for Free - vidsrc-embed.ru
+                </h3>
+                <div className="bg-gray-800/50 rounded-lg p-6">
+                  <div className="flex flex-col md:flex-row gap-6 items-center">
+                    <div className="flex-1">
+                      <h4 className="text-white font-semibold text-lg mb-2">
+                        {details.title || details.name}
+                      </h4>
+                      <p className="text-gray-400 mb-4">
+                        Season {selectedSeason} • Episode {selectedEpisode}
+                      </p>
+                      <div className="flex gap-3">
+                        <a
+                          href={`https://vidsrc-embed.ru/embed/tv?tmdb=${details.imdb_id.startsWith('tt') ? details.imdb_id : `tt${details.imdb_id}`}&season=${selectedSeason}&episode=${selectedEpisode}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors"
+                        >
+                          <FiPlay size={20} />
+                          Play Now
+                        </a>
+                      </div>
+                    </div>
+                    <div className="bg-gray-900 rounded-lg p-4 text-center">
+                      <div className="h-16 w-16 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center mx-auto mb-2">
+                        <span className="text-white font-bold text-sm">VID</span>
+                      </div>
+                      <p className="text-green-500 text-sm font-medium">Free Streaming</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Actions */}
             <div className="flex flex-wrap gap-4 mb-8">
               {/* TV Show Season/Episode Selector */}

@@ -6,10 +6,19 @@ import * as tmdbService from '../services/tmdb'
 import { STREAMING_TYPES } from '../utils/constants'
 import { getImageUrl, getVidsrcEmbedUrl, getYear } from '../utils/helpers'
 
-// vidsrcme.ru provider info
-const VIDSRCME_PROVIDER = {
+// vidsrc-embed.ru provider info
+const VIDSRCEMBED_PROVIDER = {
   provider_id: 999999,
-  provider_name: 'vidsrcme.ru',
+  provider_name: 'vidsrc-embed.ru',
+  logo_path: null,
+  type: 'free',
+  link: null,
+}
+
+// Manual IMDB provider for shows without IMDB ID
+const MANUAL_IMDB_PROVIDER = {
+  provider_id: 999998,
+  provider_name: 'Manual IMDB',
   logo_path: null,
   type: 'free',
   link: null,
@@ -34,6 +43,8 @@ const MoviePlayerPage = () => {
   const [vidsrcSeason, setVidsrcSeason] = useState(() => urlSeason ? Number(urlSeason) : 1)
   const [vidsrcEpisode, setVidsrcEpisode] = useState(() => urlEpisode ? Number(urlEpisode) : 1)
   const [watchError, setWatchError] = useState(null)
+  const [manualImdbId, setManualImdbId] = useState('')
+  const [showManualInput, setShowManualInput] = useState(false)
   
   useEffect(() => {
     const fetchData = async () => {
@@ -108,10 +119,32 @@ const MoviePlayerPage = () => {
     setShowPlayer(true)
   }
   
-  // Handle vidsrcme.ru
+  // Handle vidsrc - show in iframe
   const handleWatchVidsrc = () => {
-    setSelectedProvider(VIDSRCME_PROVIDER)
+    setSelectedProvider(VIDSRCEMBED_PROVIDER)
     setShowPlayer(true)
+  }
+  
+  // Handle manual IMDB ID input - show in iframe
+  const handleManualImdb = (e) => {
+    e.preventDefault()
+    if (manualImdbId.trim()) {
+      const formattedId = manualImdbId.trim().startsWith('tt') ? manualImdbId.trim() : `tt${manualImdbId.trim()}`
+      // Store the manual IMDB ID and show in iframe
+      setMovie(prev => ({ ...prev, manual_imdb_id: formattedId }))
+      setSelectedProvider(MANUAL_IMDB_PROVIDER)
+      setShowPlayer(true)
+    }
+  }
+  
+  // Get vidsrc URL with manual IMDB support
+  const getManualVidsrcUrl = () => {
+    const imdbId = movie?.manual_imdb_id || manualImdbId
+    if (!imdbId) {
+      setWatchError('IMDB ID is required')
+      return null
+    }
+    return getVidsrcEmbedUrl(imdbId, type, vidsrcSeason, vidsrcEpisode)
   }
   
   // Handle external link
@@ -158,25 +191,26 @@ const MoviePlayerPage = () => {
             {/* Embedded Player */}
             <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden mb-6">
               {selectedProvider.provider_id === 999999 ? (
-                // vidsrcme.ru iframe
+                // vidsrc-embed.ru iframe
                 watchError ? (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-900">
-                    <div className="text-center max-w-md px-4">
-                      <div className="mb-4">
-                        <svg className="w-16 h-16 mx-auto text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-bold text-white mb-2">Cannot Load Player</h3>
-                      <p className="text-gray-400">{watchError}</p>
-                      <p className="text-gray-500 text-sm mt-2">
-                        This content may not be available for streaming in your region.
-                      </p>
-                    </div>
-                  </div>
+                  <PlayerError error={watchError} />
                 ) : (
                   <iframe
                     src={getVidsrcUrl()}
+                    title={movie.title || movie.name}
+                    style={{ width: '100%', height: '100%' }}
+                    frameBorder="0"
+                    referrerPolicy="origin"
+                    allowFullScreen
+                  />
+                )
+              ) : selectedProvider.provider_id === 999998 ? (
+                // Manual IMDB iframe
+                watchError ? (
+                  <PlayerError error={watchError} />
+                ) : (
+                  <iframe
+                    src={getManualVidsrcUrl()}
                     title={movie.title || movie.name}
                     style={{ width: '100%', height: '100%' }}
                     frameBorder="0"
@@ -211,11 +245,15 @@ const MoviePlayerPage = () => {
             </div>
             
             {/* TV Show Season/Episode Selector */}
-            {type === 'tv' && selectedProvider.provider_id === 999999 && (
+            {(type === 'tv') && (
               <div className="flex gap-4 mb-4">
                 <select
                   value={vidsrcSeason}
-                  onChange={(e) => setVidsrcSeason(Number(e.target.value))}
+                  onChange={(e) => {
+                    setVidsrcSeason(Number(e.target.value))
+                    // Clear watch error when changing season/episode
+                    setWatchError(null)
+                  }}
                   className="bg-gray-800 text-white px-4 py-2 rounded-lg"
                 >
                   {[...Array(Math.min(movie.number_of_seasons || 1, 20))].map((_, i) => (
@@ -224,7 +262,11 @@ const MoviePlayerPage = () => {
                 </select>
                 <select
                   value={vidsrcEpisode}
-                  onChange={(e) => setVidsrcEpisode(Number(e.target.value))}
+                  onChange={(e) => {
+                    setVidsrcEpisode(Number(e.target.value))
+                    // Clear watch error when changing season/episode
+                    setWatchError(null)
+                  }}
                   className="bg-gray-800 text-white px-4 py-2 rounded-lg"
                 >
                   {[...Array(movie.seasons?.[vidsrcSeason - 1]?.episode_count || 10)].map((_, i) => (
@@ -252,7 +294,9 @@ const MoviePlayerPage = () => {
                   {movie.runtime && ` ${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m`} •
                   <span className="text-green-400 ml-2">
                     {selectedProvider.provider_id === 999999 
-                      ? 'Streaming on vidsrcme.ru' 
+                      ? 'Streaming on vidsrc-embed.ru' 
+                      : selectedProvider.provider_id === 999998
+                      ? 'Streaming on vidsrc-embed.ru (Manual IMDB)'
                       : `Streaming on ${selectedProvider.provider_name}`
                     }
                   </span>
@@ -312,12 +356,12 @@ const MoviePlayerPage = () => {
             
             {/* Streaming Options */}
             <div className="space-y-8">
-              {/* vidsrcme.ru Free Option */}
+              {/* vidsrc-embed.ru Free Option */}
               {movie.imdb_id && (
                 <section>
                   <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                     <FiPlay className="text-green-500" />
-                    Watch for Free - vidsrcme.ru
+                    Watch for Free - vidsrc-embed.ru
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <VidsrcmeCard
@@ -326,6 +370,54 @@ const MoviePlayerPage = () => {
                       onClick={handleWatchVidsrc}
                       selected={selectedProvider?.provider_id === 999999}
                     />
+                  </div>
+                </section>
+              )}
+              
+              {/* Manual IMDB Fallback - When IMDB ID is missing */}
+              {!movie.imdb_id && type === 'tv' && (
+                <section>
+                  <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <FiPlay className="text-yellow-500" />
+                    Watch for Free - Enter IMDB ID
+                  </h2>
+                  <div className="bg-gray-800/50 rounded-lg p-6">
+                    <div className="flex flex-col md:flex-row gap-6 items-center">
+                      <div className="flex-1">
+                        <h4 className="text-white font-semibold text-lg mb-2">
+                          {movie.title || movie.name}
+                        </h4>
+                        <p className="text-gray-400 mb-4">
+                          This TV show doesn't have an IMDB ID in our database. 
+                          Enter the IMDB ID manually to watch on vidsrcme.ru
+                        </p>
+                        <form onSubmit={handleManualImdb} className="flex gap-3">
+                          <input
+                            type="text"
+                            value={manualImdbId}
+                            onChange={(e) => setManualImdbId(e.target.value)}
+                            placeholder="e.g., tt0944947"
+                            className="flex-1 bg-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                          />
+                          <button
+                            type="submit"
+                            disabled={!manualImdbId.trim()}
+                            className="px-6 py-3 bg-yellow-600 text-white font-semibold rounded-md hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Watch
+                          </button>
+                        </form>
+                        <p className="text-gray-500 text-sm mt-3">
+                          💡 Tip: Search for "{movie.title || movie.name}" on IMDb to find the ID
+                        </p>
+                      </div>
+                      <div className="bg-gray-900 rounded-lg p-4 text-center">
+                        <div className="h-16 w-16 bg-gradient-to-br from-yellow-600 to-orange-500 rounded-lg flex items-center justify-center mx-auto mb-2">
+                          <span className="text-white font-bold text-sm">IMDb</span>
+                        </div>
+                        <p className="text-yellow-500 text-sm font-medium">Manual Entry</p>
+                      </div>
+                    </div>
                   </div>
                 </section>
               )}
@@ -439,13 +531,13 @@ const MoviePlayerPage = () => {
   )
 }
 
-// vidsrcme.ru Card Component
+// vidsrc Card Component
 const VidsrcmeCard = ({ movie, type, onClick, selected }) => {
   return (
     <button
       onClick={onClick}
       className={`
-        relative p-4 rounded-lg transition-all
+        w-full p-4 rounded-lg transition-all
         ${selected 
           ? 'bg-netflix-red ring-2 ring-netflix-red ring-offset-2 ring-offset-black' 
           : 'bg-gray-800 hover:bg-gray-700'
@@ -461,7 +553,7 @@ const VidsrcmeCard = ({ movie, type, onClick, selected }) => {
       
       {/* Name */}
       <p className="text-white text-sm font-medium text-center line-clamp-1">
-        vidsrcme.ru
+        vidsrc-embed.ru
       </p>
       
       {/* Type Badge */}
@@ -620,6 +712,24 @@ const NoProvidersState = ({ movie, type, id }) => (
       >
         View Details
       </Link>
+    </div>
+  </div>
+)
+
+// Player Error Component
+const PlayerError = ({ error }) => (
+  <div className="w-full h-full flex items-center justify-center bg-gray-900">
+    <div className="text-center max-w-md px-4">
+      <div className="mb-4">
+        <svg className="w-16 h-16 mx-auto text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <h3 className="text-xl font-bold text-white mb-2">Cannot Load Player</h3>
+      <p className="text-gray-400">{error}</p>
+      <p className="text-gray-500 text-sm mt-2">
+        This content may not be available for streaming in your region.
+      </p>
     </div>
   </div>
 )
