@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FiArrowLeft, FiExternalLink, FiMonitor, FiPlay } from 'react-icons/fi'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Skeleton } from '../components/ui/Skeleton'
 import * as tmdbService from '../services/tmdb'
 import { STREAMING_TYPES } from '../utils/constants'

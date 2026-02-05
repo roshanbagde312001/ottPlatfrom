@@ -79,9 +79,38 @@ const BrowseMoviesPage = () => {
           params.vote_average_gte = rating
         }
         
-        response = await tmdbService.discoverMovies(params)
-        setMovies(response.results || [])
-        setTvShows([])
+        // Fetch based on searchType
+        if (searchType === 'tv') {
+          // Fetch TV shows using discover TV API
+          const tvResponse = await tmdbService.discoverTV(params)
+          // Add media_type to each TV show item for proper navigation
+          const tvShowsWithType = (tvResponse.results || []).map(tv => ({
+            ...tv,
+            media_type: 'tv'
+          }))
+          setMovies([])
+          setTvShows(tvShowsWithType)
+        } else if (searchType === 'movie') {
+          // Fetch movies using discover movies API
+          const movieResponse = await tmdbService.discoverMovies(params)
+          setMovies(movieResponse.results || [])
+          setTvShows([])
+        } else {
+          // All - fetch both in parallel
+          const [movieResponse, tvResponse] = await Promise.all([
+            tmdbService.discoverMovies(params),
+            tmdbService.discoverTV(params)
+          ])
+          
+          // Combine results and sort by popularity
+          const combined = [
+            ...(movieResponse.results || []).map(m => ({ ...m, media_type: 'movie' })),
+            ...(tvResponse.results || []).map(t => ({ ...t, media_type: 'tv' }))
+          ].sort((a, b) => b.popularity - a.popularity)
+          
+          setMovies(combined)
+          setTvShows([])
+        }
       }
     } catch (err) {
       console.error('Error fetching movies:', err)
@@ -158,7 +187,7 @@ const BrowseMoviesPage = () => {
             </div>
             
             <GenreFilter
-              mediaType={mediaType}
+              mediaType={searchType}
               selectedGenre={genreId}
               onGenreChange={(id) => updateFilter('genre', id)}
             />
@@ -210,7 +239,7 @@ const BrowseMoviesPage = () => {
                   onClick={() => updateFilter('genre', null)}
                   className="inline-flex items-center gap-1 px-3 py-1 bg-netflix-red text-white text-sm rounded-full hover:bg-red-700 transition-colors"
                 >
-                  {GENRES.MOVIE.find(g => g.id === genreId)?.name}
+                  {(searchType === 'tv' ? GENRES.TV : GENRES.MOVIE).find(g => g.id === genreId)?.name}
                   <span className="ml-1">×</span>
                 </button>
               )}
@@ -241,7 +270,11 @@ const BrowseMoviesPage = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Results Count */}
         <p className="text-gray-400 mb-6">
-          {loading ? 'Loading...' : `${movies.length} results found`}
+          {loading ? 'Loading...' : 
+            searchType === 'tv' ? `${tvShows.length} TV shows found` :
+            searchType === 'all' ? `${movies.length} results found` :
+            `${movies.length} movies found`
+          }
         </p>
         
         {/* Loading State */}
@@ -272,25 +305,31 @@ const BrowseMoviesPage = () => {
         )}
         
         {/* Empty State */}
-        {!loading && !error && movies.length === 0 && (
+        {!loading && !error && 
+          ((searchType === 'tv' && tvShows.length === 0) || 
+           (searchType !== 'tv' && movies.length === 0)) && (
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
-              <p className="text-gray-400 text-lg mb-4">No movies found</p>
+              <p className="text-gray-400 text-lg mb-4">
+                {searchType === 'tv' ? 'No TV shows found' : 'No movies found'}
+              </p>
               <p className="text-gray-500 text-sm">Try adjusting your filters</p>
             </div>
           </div>
         )}
         
         {/* Movies Grid/List */}
-        {!loading && !error && movies.length > 0 && (
+        {!loading && !error && 
+          ((searchType === 'tv' && tvShows.length > 0) || 
+           (searchType !== 'tv' && movies.length > 0)) && (
           <div className={viewMode === 'grid'
             ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4'
             : 'space-y-4'
           }>
-            {movies.map((movie) => (
+            {(searchType === 'tv' ? tvShows : movies).map((item) => (
               <MovieCard
-                key={movie.id}
-                movie={movie}
+                key={item.id}
+                movie={item}
                 size={viewMode === 'grid' ? 'md' : 'lg'}
                 showInfoOnHover={viewMode === 'grid'}
               />
@@ -299,7 +338,9 @@ const BrowseMoviesPage = () => {
         )}
         
         {/* Load More */}
-        {!loading && movies.length > 0 && movies.length >= 20 && (
+        {!loading && 
+          ((searchType === 'tv' && tvShows.length > 0 && tvShows.length >= 20) || 
+           (searchType !== 'tv' && movies.length > 0 && movies.length >= 20)) && (
           <div className="flex justify-center mt-8">
             <button
               className="px-8 py-3 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors"
