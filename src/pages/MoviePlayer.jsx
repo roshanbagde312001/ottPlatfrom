@@ -375,8 +375,26 @@ const MoviePlayerPage = () => {
                 </section>
               )}
               
+
+{!movie.imdb_id && location.pathname.includes('tv') && (
+                <section>
+                  <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <FiPlay className="text-green-500" />
+                    Watch for Free - vidsrc-embed.ru
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <VidsrcmeCard
+                      movie={movie}
+                      type={type}
+                      onClick={handleManualImdb}
+                      selected={selectedProvider?.provider_id === 999998}
+                    />
+                  </div>
+                </section>
+              )}
+
               {/* Manual IMDB Fallback - When IMDB ID is missing */}
-              {!movie.imdb_id && location.pathname.includes('tv') && (
+              {/* {!movie.imdb_id && location.pathname.includes('tv') && (
                 <section>
                   <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                     <FiPlay className="text-yellow-500" />
@@ -421,7 +439,7 @@ const MoviePlayerPage = () => {
                     </div>
                   </div>
                 </section>
-              )}
+              )} */}
               
               {/* Free Providers */}
               {providers?.free && providers.free.length > 0 && (
