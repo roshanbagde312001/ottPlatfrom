@@ -9,6 +9,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
     { icon: FiTrendingUp, label: 'Trending', to: '/browse?sort=trending' },
     { icon: FiTv, label: 'Movies', to: '/browse?type=movie' },
     { icon: FiTv, label: 'TV Shows', to: '/browse?type=tv' },
+    { icon: FiTv, label: 'Anime', to: '/anime' },
     { icon: FiHeart, label: 'Watchlist', to: '/watchlist' },
   ]
   

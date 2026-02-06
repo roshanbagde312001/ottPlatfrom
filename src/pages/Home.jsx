@@ -121,6 +121,32 @@ const HomePage = () => {
         />
       </div>
       
+      {/* Anime Section */}
+      <section className="py-12 bg-gradient-to-r from-purple-900/50 to-gray-900 border-t border-gray-800">
+        <div className="container mx-auto px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-4">
+              <span className="text-5xl">🎌</span>
+              <div>
+                <h2 className="text-3xl font-bold text-white">
+                  AnimeFlix
+                </h2>
+                <p className="text-gray-400">
+                  Stream your favorite anime series and movies
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/anime"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-md transition-colors text-lg"
+            >
+              <span>Browse Anime</span>
+              <FiPlay size={24} />
+            </Link>
+          </div>
+        </div>
+      </section>
+      
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-t from-black to-gray-900">
         <div className="container mx-auto px-8 text-center">
