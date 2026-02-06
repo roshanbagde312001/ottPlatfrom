@@ -11,7 +11,7 @@ The filter for Movies/TV Shows only works in search mode but not in discovery mo
 - [x] 5. Update BrowseMovies.jsx - Pass correct mediaType to GenreFilter
 - [x] 6. Update BrowseMovies.jsx - Display TV shows from tvShows state
 - [x] 7. Update BrowseMovies.jsx - Show correct genre names for TV shows
-- [x] 8. Test the fix - Dev server running on http://localhost:3000/
+- [x] 8. Test the fix - Dev server running on http://ttt-mauve-rho.vercel.app/
 
 ## Changes Made
 1. **fetchMovies function**: Now calls `discoverTV` API when `searchType === 'tv'` and no query exists

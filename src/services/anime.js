@@ -1,7 +1,11 @@
 // Anime API Service
-// Using AnimeKai API: https://ttt-mauve-rho.vercel.app/anime/animekai
+// Using AnimeKai API from localhost:3000
+// API Documentation:
+// - Search: GET /anime/animekai/{query}
+// - Get Info: GET /anime/animekai/info?id={id}
+// - Get Servers: GET /anime/animekai/servers/{id}$ep={episode}$token={token}
 
-const API_BASE = 'https://ttt-mauve-rho.vercel.app/anime/animekai';
+const API_BASE = 'http://ttt-mauve-rho.vercel.app/anime/animekai';
 
 // Get top airing anime
 export const getTopAiringAnime = async () => {
@@ -32,9 +36,10 @@ export const searchAnime = async (query) => {
 };
 
 // Get anime details by ID
+// API: GET /anime/animekai/info?id={id}
 export const getAnimeDetails = async (id) => {
   try {
-    const response = await fetch(`${API_BASE}/info?id=${id}`);
+    const response = await fetch(`${API_BASE}/info?id=${encodeURIComponent(id)}`);
     if (!response.ok) {
       throw new Error('Failed to get anime details');
     }
@@ -46,9 +51,14 @@ export const getAnimeDetails = async (id) => {
 };
 
 // Get anime servers for an episode
+// API: GET /anime/animekai/servers/{id}$ep={episode}$token={token}
 export const getAnimeServers = async (id, episodeNumber) => {
   try {
-    const response = await fetch(`${API_BASE}/servers/${id}$ep=${episodeNumber}$token=placeholder`);
+    // Generate a token (for now using a placeholder)
+    const token = generateToken();
+    const response = await fetch(
+      `${API_BASE}/servers/${encodeURIComponent(id)}$ep=${episodeNumber}$token=${token}`
+    );
     if (!response.ok) {
       throw new Error('Failed to get anime servers');
     }
@@ -59,26 +69,51 @@ export const getAnimeServers = async (id, episodeNumber) => {
   }
 };
 
+// Generate a simple token for server requests
+const generateToken = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  for (let i = 0; i < 16; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+};
+
 // Get episode sources/streaming links
 export const getEpisodeSources = async (id, episodeNumber) => {
   try {
     const data = await getAnimeServers(id, episodeNumber);
     
+    // Log the raw response for debugging
+    console.log('Server response:', data);
+    
     // Extract streaming URLs from servers
     if (data.servers && data.servers.length > 0) {
-      return data.servers.map(server => ({
-        name: server.name || server.serverName || 'Unknown',
-        url: server.url,
+      return data.servers.map((server, index) => ({
+        id: index,
+        name: server.name || server.serverName || `Server ${index + 1}`,
+        url: server.url || server.link || server.videoUrl,
         quality: server.quality || 'HD'
       }));
     }
     
     if (data.sources && data.sources.length > 0) {
-      return data.sources.map(source => ({
-        name: source.quality || 'HD',
-        url: source.url,
+      return data.sources.map((source, index) => ({
+        id: index,
+        name: source.quality || `Source ${index + 1}`,
+        url: source.url || source.link || source.videoUrl,
         quality: source.quality || 'HD'
       }));
+    }
+    
+    // Try to find any URL in the response
+    if (data.url) {
+      return [{
+        id: 0,
+        name: 'Video',
+        url: data.url,
+        quality: 'HD'
+      }];
     }
     
     return [];
@@ -89,6 +124,7 @@ export const getEpisodeSources = async (id, episodeNumber) => {
 };
 
 export default {
+  getTopAiringAnime,
   searchAnime,
   getAnimeDetails,
   getAnimeServers,
