@@ -1,6 +1,7 @@
 import Hls from 'hls.js'
 import { useEffect, useRef, useState } from 'react'
 import {
+  FiAlertCircle,
   FiArrowLeft,
   FiChevronLeft,
   FiChevronRight,
@@ -83,8 +84,10 @@ const AnimePlayerPage = () => {
           
           // Build episodes array from real data
           const eps = episodesData.data.map((ep, index) => ({
-            number: ep.number || index + 1,
-            id: ep.id // Use real episode ID from API
+            number: ep.number || ep.episodeNumber || index + 1,
+            id: ep.id, // Use real episode ID from API
+            title: ep.title || ep.alternativeTitle || `Episode ${ep.number || ep.episodeNumber || index + 1}`,
+            isFiller: ep.isFiller || false
           }))
           console.log(`[AnimePlayer] Built episodes array:`, eps)
           setEpisodes(eps)
@@ -822,32 +825,101 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
   )
 }
 
-// Enhanced Episode Selector Component
-const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => (
-  <div className="mt-6 bg-gray-900/80 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-2xl">
-    <div className="flex items-center justify-between mb-4">
-      <h3 className="text-white font-semibold flex items-center gap-2">
-        <FiList className="text-purple-400" /> Select Episode
-      </h3>
-      <span className="text-gray-400 text-sm">{episodes.length} episodes available</span>
+// Enhanced Episode Selector Component with Filler Episode Support (AnimeDetails Style)
+const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
+  const fillerCount = episodes.filter(ep => ep.isFiller).length;
+
+  return (
+    <div className="mt-6 bg-gray-800/40 rounded-2xl p-6 border border-gray-700/50 shadow-2xl">
+      {/* Header with Episode Count and Filler Info */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h3 className="text-xl font-bold flex items-center gap-2">
+          <FiList className="text-purple-400" /> Select Episode
+        </h3>
+        <div className="flex items-center gap-4 text-sm">
+          <div className="text-gray-400">{episodes.length} Episodes Total</div>
+          {fillerCount > 0 && (
+            <div className="flex items-center gap-2 text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+              <FiAlertCircle className="w-4 h-4" />
+              <span className="font-medium">{fillerCount} Filler</span>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Filler Info Banner */}
+      {fillerCount > 0 && (
+        <div className="mb-4 p-3 bg-amber-400/5 border border-amber-400/10 rounded-lg flex items-start gap-2 text-sm text-amber-200/80">
+          <FiAlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>Filler episodes are marked in <span className="text-amber-400 font-medium">amber</span>. These episodes may not follow the main storyline.</span>
+        </div>
+      )}
+      
+      {/* Episode Grid - AnimeDetails Style */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+        {episodes.map(ep => {
+          const isCurrent = currentEpisode === ep.number;
+          const isFiller = ep.isFiller;
+          
+          return (
+            <button
+              key={ep.number}
+              onClick={() => onSelect(ep.number)}
+              className={`
+                group relative p-3 rounded-xl text-left transition-all duration-200 border
+                ${isCurrent 
+                  ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-600/25 scale-[1.02]' 
+                  : isFiller
+                    ? 'bg-amber-900/20 border-amber-700/30 hover:bg-amber-900/30 hover:border-amber-600/50'
+                    : 'bg-gray-700/50 border-gray-600/30 hover:bg-gray-700 hover:border-gray-500/50'
+                }
+              `}
+            >
+              {/* Episode Number Badge */}
+              <div className={`
+                inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold mb-2
+                ${isCurrent 
+                  ? 'bg-white/20 text-white' 
+                  : isFiller
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-gray-600/50 text-gray-300'
+                }
+              `}>
+                {ep.number}
+              </div>
+              
+              {/* Filler Badge */}
+              {isFiller && (
+                <div className="absolute top-2 right-2">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-amber-950 uppercase tracking-wider">
+                    Filler
+                  </span>
+                </div>
+              )}
+              
+              {/* Episode Title */}
+              <div className="space-y-1">
+                <p className={`
+                  text-xs font-medium line-clamp-2 leading-relaxed
+                  ${isCurrent ? 'text-white' : isFiller ? 'text-amber-200/70' : 'text-gray-400'}
+                `}>
+                  {ep.title || `Episode ${ep.number}`}
+                </p>
+              </div>
+              
+              {/* Selection Indicator */}
+              {isCurrent && (
+                <div className="absolute bottom-2 right-2">
+                  <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
-    <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2 max-h-48 overflow-y-auto p-2 custom-scrollbar">
-      {episodes.map(ep => (
-        <button 
-          key={ep.number} 
-          onClick={() => onSelect(ep.number)}
-          className={`p-3 text-sm rounded-xl transition-all duration-300 font-medium ${
-            currentEpisode === ep.number 
-              ? 'bg-gradient-to-br from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/30 scale-105' 
-              : 'bg-gray-800 hover:bg-gray-700 hover:scale-105 text-gray-300 border border-white/5'
-          }`}
-        >
-          {ep.number}
-        </button>
-      ))}
-    </div>
-  </div>
-)
+  );
+};
 
 // Enhanced Server Selector Component
 const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange, onTypeChange }) => {
