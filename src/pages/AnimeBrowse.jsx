@@ -8,13 +8,17 @@ import {
   FiPlay,
   FiSearch,
   FiStar,
-  FiTrendingUp
+  FiTrendingUp,
+  FiX
 } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
+import { AnimeCarousel } from '../components/movie/AnimeCarousel'
+import { SkeletonHero, SkeletonRow } from '../components/ui/Skeleton'
 import {
   browseByQuery,
   getHomeData,
   getPosterUrl,
+  getSpotlight,
   searchAnime
 } from '../services/anime'
 
@@ -45,38 +49,78 @@ const BROWSE_CATEGORIES = [
 const AnimeBrowsePage = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [homeData, setHomeData] = useState(null)
-  const [metaInfo, setMetaInfo] = useState(null)
-  const [results, setResults] = useState([])
+  const [spotlight, setSpotlight] = useState([])
+  const [sections, setSections] = useState({
+    trending: { data: [], loading: true, error: null },
+    topAiring: { data: [], loading: true, error: null },
+    mostPopular: { data: [], loading: true, error: null },
+    mostFavorite: { data: [], loading: true, error: null },
+    completed: { data: [], loading: true, error: null },
+    recentlyAdded: { data: [], loading: true, error: null },
+    topUpcoming: { data: [], loading: true, error: null },
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [activeSection, setActiveSection] = useState('trending')
   const [currentCategory, setCurrentCategory] = useState('trending')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [searchMode, setSearchMode] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState('hianime-scrap')
+  const [showFilters, setShowFilters] = useState(false)
 
-  // Fetch home data on page load
+  // Fetch home data and spotlight on page load
   useEffect(() => {
-    const fetchHomeData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
         
-        const [home, meta] = await Promise.all([
+        const [home, spotlightData] = await Promise.all([
           getHomeData(),
-          // getMetaInfo()
+          getSpotlight().catch(() => ({ data: [] }))
         ])
         
         setHomeData(home.data)
-        // setMetaInfo(meta.data)
+        setSpotlight(spotlightData.data?.slice(0, 5) || [])
         
-        // Set initial results to trending
-        if (home.data.trending && home.data.trending.length > 0) {
-          setResults(home.data.trending)
-        } else if (home.data.topAiring && home.data.topAiring.length > 0) {
-          setResults(home.data.topAiring)
-        }
+        // Set up sections
+        setSections({
+          trending: { 
+            data: home.data?.trending || [], 
+            loading: false, 
+            error: null 
+          },
+          topAiring: { 
+            data: home.data?.topAiring || [], 
+            loading: false, 
+            error: null 
+          },
+          mostPopular: { 
+            data: home.data?.mostPopular || [], 
+            loading: false, 
+            error: null 
+          },
+          mostFavorite: { 
+            data: home.data?.mostFavorite || [], 
+            loading: false, 
+            error: null 
+          },
+          completed: { 
+            data: home.data?.completed || [], 
+            loading: false, 
+            error: null 
+          },
+          recentlyAdded: { 
+            data: home.data?.recentlyAdded || [], 
+            loading: false, 
+            error: null 
+          },
+          topUpcoming: { 
+            data: home.data?.topUpcoming || [], 
+            loading: false, 
+            error: null 
+          },
+        })
       } catch (err) {
         console.error('Home data error:', err)
         setError('Failed to load anime data')
@@ -85,7 +129,7 @@ const AnimeBrowsePage = () => {
       }
     }
 
-    fetchHomeData()
+    fetchData()
   }, [])
 
   // Handle category selection
@@ -93,27 +137,38 @@ const AnimeBrowsePage = () => {
     setSearchMode(false)
     setCurrentCategory(categoryId)
     setPage(1)
-    setLoading(true)
-    setError(null)
+    setShowFilters(false)
+
+    // Update sections to show loading for the selected category
+    setSections(prev => ({
+      ...prev,
+      [categoryId]: { ...prev[categoryId], loading: true }
+    }))
 
     try {
       const data = await browseByQuery(categoryId, 1)
       
       if (data.data && data.data.response) {
-        setResults(data.data.response)
+        setSections(prev => ({
+          ...prev,
+          [categoryId]: { 
+            data: data.data.response, 
+            loading: false, 
+            error: null 
+          }
+        }))
         setTotalPages(data.data.pageInfo?.totalPages || 1)
-      } else {
-        // Use home data sections
-        if (homeData) {
-          const sectionData = homeData[categoryId] || homeData.topAiring || []
-          setResults(sectionData)
-        }
       }
     } catch (err) {
       console.error('Category fetch error:', err)
-      setError('Failed to load category')
-    } finally {
-      setLoading(false)
+      setSections(prev => ({
+        ...prev,
+        [categoryId]: { 
+          data: [], 
+          loading: false, 
+          error: err.message 
+        }
+      }))
     }
   }
 
@@ -124,25 +179,43 @@ const AnimeBrowsePage = () => {
       return
     }
 
-    setLoading(true)
-    setError(null)
     setSearchMode(true)
+
+    // Update trending section to show loading
+    setSections(prev => ({
+      ...prev,
+      trending: { ...prev.trending, loading: true, error: null }
+    }))
 
     try {
       const data = await searchAnime(searchQuery.trim(), 1, selectedProvider)
 
       if (data.data && data.data.response) {
-        setResults(data.data.response)
+        setSections(prev => ({
+          ...prev,
+          trending: { 
+            data: data.data.response, 
+            loading: false, 
+            error: null 
+          }
+        }))
         setTotalPages(data.data.pageInfo?.totalPages || 1)
       } else {
-        setResults([])
+        setSections(prev => ({
+          ...prev,
+          trending: { data: [], loading: false, error: null }
+        }))
       }
     } catch (err) {
       console.error('Search error:', err)
-      setError(err.message || 'Failed to search anime')
-      setResults([])
-    } finally {
-      setLoading(false)
+      setSections(prev => ({
+        ...prev,
+        trending: { 
+          data: [], 
+          loading: false, 
+          error: err.message || 'Failed to search anime' 
+        }
+      }))
     }
   }, [searchQuery, selectedProvider])
 
@@ -157,30 +230,36 @@ const AnimeBrowsePage = () => {
   const loadMore = async () => {
     if (page >= totalPages) return
     
-    setLoading(true)
-    
     try {
-      let newResults
       if (searchMode) {
         const data = await searchAnime(searchQuery.trim(), page + 1)
         if (data.data?.response) {
-          newResults = [...results, ...data.data.response]
+          setSections(prev => ({
+            ...prev,
+            trending: {
+              data: [...prev.trending.data, ...data.data.response],
+              loading: false,
+              error: null
+            }
+          }))
+          setPage(page + 1)
         }
       } else {
         const data = await browseByQuery(currentCategory, page + 1)
         if (data.data?.response) {
-          newResults = [...results, ...data.data.response]
+          setSections(prev => ({
+            ...prev,
+            [currentCategory]: {
+              data: [...prev[currentCategory].data, ...data.data.response],
+              loading: false,
+              error: null
+            }
+          }))
+          setPage(page + 1)
         }
-      }
-      
-      if (newResults) {
-        setResults(newResults)
-        setPage(page + 1)
       }
     } catch (err) {
       console.error('Load more error:', err)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -189,34 +268,72 @@ const AnimeBrowsePage = () => {
     setSearchQuery('')
     setSearchMode(false)
     setPage(1)
-    if (homeData) {
-      const sectionData = homeData[currentCategory] || homeData.topAiring || []
-      setResults(sectionData)
-    }
+    setShowFilters(false)
+  }
+
+  if (loading) {
+    return <PageLoader />
   }
 
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-900/80 to-gray-900/80 border-b border-gray-800">
-        <div className="container mx-auto px-4 py-8">
-          {/* Title */}
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-4xl">🎌</span>
-            <h1 className="text-3xl md:text-4xl font-bold text-white">
-              Hinaime Anime
-            </h1>
-          </div>
-          
-          {/* Provider Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Anime Provider
-            </label>
+      {/* Featured/Hero Section */}
+      <section className="relative">
+        {spotlight.length > 0 ? (
+          <FeaturedSection anime={spotlight} />
+        ) : (
+          <SkeletonHero />
+        )}
+      </section>
+
+      {/* Search & Filter Bar */}
+      <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            {/* Search */}
+            <div className="flex-1 w-full md:max-w-xl">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Search anime..."
+                  className="w-full px-5 py-3 pr-24 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-12 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <FiX size={18} />
+                  </button>
+                )}
+                <button
+                  onClick={handleSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors"
+                >
+                  <FiSearch size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                showFilters ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <FiList size={18} />
+              <span className="hidden sm:inline">Filters</span>
+            </button>
+
+            {/* Provider Selection */}
             <select
               value={selectedProvider}
               onChange={(e) => setSelectedProvider(e.target.value)}
-              className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+              className="px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
             >
               {PROVIDER_OPTIONS.map(provider => (
                 <option key={provider.id} value={provider.id}>
@@ -226,238 +343,286 @@ const AnimeBrowsePage = () => {
             </select>
           </div>
 
-          {/* Search */}
-          <div className="max-w-2xl mb-6">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Search anime (e.g., Naruto, One Piece, Attack on Titan)..."
-                className="w-full px-5 py-4 pr-14 bg-gray-800/50 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
-              />
-              <button
-                onClick={handleSearch}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-              >
-                <FiSearch size={20} />
-              </button>
+          {/* Expandable Filters */}
+          {showFilters && (
+            <div className="mt-4 pt-4 border-t border-gray-800">
+              <div className="flex flex-wrap gap-2">
+                {BROWSE_CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategorySelect(cat.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      currentCategory === cat.id && !searchMode
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    {cat.icon}
+                    <span>{cat.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            {searchMode && (
-              <button
-                onClick={clearSearch}
-                className="mt-2 text-sm text-gray-400 hover:text-white"
-              >
-                Clear search
-              </button>
-            )}
-          </div>
-          
-          {/* Browse Categories */}
-          <div className="flex flex-wrap gap-2">
-            {BROWSE_CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategorySelect(cat.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentCategory === cat.id && !searchMode
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                {cat.icon}
-                <span className="hidden sm:inline">{cat.label}</span>
-              </button>
-            ))}
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
-        {/* Section Title */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            {searchMode ? (
-              <>
+      {/* Content Sections */}
+      <div className="relative -mt-32 z-10 pb-12">
+        {searchMode ? (
+          /* Search Results */
+          <div className="container mx-auto px-4 py-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                 <FiSearch className="text-purple-500" />
                 Search Results for "{searchQuery}"
-              </>
-            ) : (
-              <>
-                {currentCategory === 'top-airing' && <FiTrendingUp className="text-purple-500" />}
-                {currentCategory === 'most-popular' && <FiStar className="text-yellow-500" />}
-                {currentCategory === 'most-favorite' && <FiHeart className="text-red-500" />}
-                {BROWSE_CATEGORIES.find(c => c.id === currentCategory)?.label || 'Anime'}
-              </>
-            )}
-          </h2>
-          <span className="text-gray-400">
-            {results.length} results
-          </span>
-        </div>
-
-        {/* Error State */}
-        {error && !loading && (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <p className="text-red-500 mb-4">{error}</p>
+              </h2>
               <button
-                onClick={searchMode ? handleSearch : () => handleCategorySelect(currentCategory)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                onClick={clearSearch}
+                className="text-sm text-gray-400 hover:text-white flex items-center gap-1"
               >
-                Try Again
+                <FiX size={16} />
+                Clear
               </button>
             </div>
-          </div>
-        )}
 
-        {/* Loading State */}
-        {loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {[...Array(12)].map((_, i) => (
-              <AnimeSkeletonCard key={i} />
-            ))}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !error && results.length === 0 && (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <div className="text-6xl mb-4">😔</div>
-              <h2 className="text-2xl font-bold text-white mb-2">
-                No Results Found
-              </h2>
-              <p className="text-gray-400 mb-4">
-                {searchMode 
-                  ? `No anime found for "${searchQuery}"`
-                  : 'No anime found in this category'
-                }
-              </p>
-              <p className="text-gray-500 text-sm">
-                Try a different search term or category
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Results Grid */}
-        {!loading && !error && results.length > 0 && (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {results.map((anime) => (
-                <AnimeCard key={anime.id} anime={anime} provider={selectedProvider} />
-              ))}
-            </div>
-
-            {/* Load More */}
-            {page < totalPages && (
-              <div className="text-center mt-8">
+            {error && (
+              <div className="text-center py-16">
+                <p className="text-red-500 mb-4">{error}</p>
                 <button
-                  onClick={loadMore}
-                  disabled={loading}
-                  className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                  onClick={handleSearch}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
                 >
-                  {loading ? 'Loading...' : 'Load More'}
+                  Try Again
                 </button>
               </div>
             )}
+
+            {!error && sections.trending.data.length === 0 && (
+              <div className="text-center py-16">
+                <div className="text-6xl mb-4">😔</div>
+                <h2 className="text-2xl font-bold text-white mb-2">No Results Found</h2>
+                <p className="text-gray-400">Try a different search term</p>
+              </div>
+            )}
+
+            <AnimeCarousel
+              anime={sections.trending.data}
+              loading={sections.trending.loading}
+              error={sections.trending.error}
+              size="md"
+            />
+          </div>
+        ) : (
+          /* Carousel Sections */
+          <>
+            {/* Trending Now */}
+            <AnimeCarousel
+              title="Trending Now"
+              anime={sections.trending.data}
+              loading={sections.trending.loading}
+              error={sections.trending.error}
+              size="md"
+            />
+
+            {/* Top Airing */}
+            <AnimeCarousel
+              title="Top Airing"
+              anime={sections.topAiring.data}
+              loading={sections.topAiring.loading}
+              error={sections.topAiring.error}
+              size="md"
+            />
+
+            {/* Most Popular */}
+            <AnimeCarousel
+              title="Most Popular"
+              anime={sections.mostPopular.data}
+              loading={sections.mostPopular.loading}
+              error={sections.mostFavorite.error}
+              size="md"
+            />
+
+            {/* Most Favorite */}
+            <AnimeCarousel
+              title="Most Favorite"
+              anime={sections.mostFavorite.data}
+              loading={sections.mostFavorite.loading}
+              error={sections.mostFavorite.error}
+              size="md"
+            />
+
+            {/* Completed */}
+            <AnimeCarousel
+              title="Completed Series"
+              anime={sections.completed.data}
+              loading={sections.completed.loading}
+              error={sections.completed.error}
+              size="md"
+            />
+
+            {/* Recently Added */}
+            <AnimeCarousel
+              title="Recently Added"
+              anime={sections.recentlyAdded.data}
+              loading={sections.recentlyAdded.loading}
+              error={sections.recentlyAdded.error}
+              size="md"
+            />
+
+            {/* Top Upcoming */}
+            <AnimeCarousel
+              title="Top Upcoming"
+              anime={sections.topUpcoming.data}
+              loading={sections.topUpcoming.loading}
+              error={sections.topUpcoming.error}
+              size="md"
+            />
           </>
         )}
       </div>
+
+      {/* CTA Section */}
+      <section className="py-16 bg-gradient-to-t from-black to-gray-900">
+        <div className="container mx-auto px-8 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to watch anime?
+          </h2>
+          <p className="text-gray-400 text-lg mb-8 max-w-2xl mx-auto">
+            Discover thousands of anime series and movies. From classics to the latest releases!
+          </p>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 transition-colors text-lg"
+          >
+            <FiPlay size={24} />
+            Browse All
+          </Link>
+        </div>
+      </section>
     </div>
   )
 }
 
-// Anime Card Component
-const AnimeCard = ({ anime }) => {
+// Featured Section Component
+const FeaturedSection = ({ anime }) => {
+  const [activeIndex, setActiveIndex] = useState(0)
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % anime.length)
+    }, 5000)
+    
+    return () => clearInterval(interval)
+  }, [anime.length])
+  
+  const currentAnime = anime[activeIndex]
+  
   return (
-    <Link
-      to={`/anime/${encodeURIComponent(anime.id)}`}
-      className="group relative bg-gray-800 rounded-xl overflow-hidden hover:ring-2 hover:ring-purple-500 transition-all duration-300"
-    >
-      {/* Poster Image */}
-      <div className="aspect-[2/3] overflow-hidden">
+    <div className="relative h-[70vh] overflow-hidden">
+      {/* Featured Anime Backdrop */}
+      <div className="absolute inset-0">
         <img
-          src={getPosterUrl(anime.poster)}
-          alt={anime.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-          onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/200x300?text=No+Image'
-          }}
+          src={getPosterUrl(currentAnime.poster)}
+          alt={currentAnime.title}
+          className="w-full h-full object-cover"
         />
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="absolute bottom-0 left-0 right-0 p-3">
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/90 via-gray-900/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
+      </div>
+      
+      {/* Featured Content */}
+      <div className="relative h-full flex items-center px-8 md:px-16 lg:px-24">
+        <div className="max-w-2xl space-y-6">
+          {/* Badge */}
+          <div className="flex items-center gap-3">
+            <span className="text-purple-500 font-bold tracking-wider uppercase text-sm">
+              Featured
+            </span>
+            {currentAnime.rank && (
+              <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded font-medium">
+                #{currentAnime.rank}
+              </span>
+            )}
+          </div>
+          
+          {/* Title */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
+            {currentAnime.title}
+          </h1>
+          
+          {/* Overview */}
+          <p className="text-gray-300 text-lg line-clamp-3">
+            {currentAnime.description || currentAnime.synopsis || 'No description available.'}
+          </p>
+          
+          {/* Meta */}
+          <div className="flex items-center gap-4 text-sm text-gray-400">
+            {currentAnime.type && <span>{currentAnime.type}</span>}
+            {currentAnime.episodes && (
+              <span>
+                {currentAnime.episodes.eps || currentAnime.episodes.sub || currentAnime.episodes.dub || '?'} Episodes
+              </span>
+            )}
+            {currentAnime.rating && (
+              <span className="text-yellow-400 flex items-center gap-1">
+                <FiStar size={14} />
+                {currentAnime.rating}
+              </span>
+            )}
+          </div>
+          
+          {/* Actions */}
+          <div className="flex gap-4 pt-4">
             <Link
-              to={`/watch/anime/${encodeURIComponent(anime.id)}?ep=1`}
-              className="w-full flex items-center justify-center gap-2 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors mb-2"
-              onClick={(e) => e.stopPropagation()}
+              to={`/watch/anime/${encodeURIComponent(currentAnime.id)}?ep=1`}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white font-semibold rounded-md hover:bg-purple-700 transition-colors"
             >
-              <FiPlay size={16} />
-              Watch
+              <FiPlay size={20} />
+              Watch Now
             </Link>
             <Link
-              to={`/anime/${encodeURIComponent(anime.id)}`}
-              className="w-full flex items-center justify-center gap-2 py-2 bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg transition-colors"
-              onClick={(e) => e.stopPropagation()}
+              to={`/anime/${encodeURIComponent(currentAnime.id)}`}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-700/80 text-white font-semibold rounded-md hover:bg-gray-600 transition-colors"
             >
-              <FiInfo size={16} />
-              Details
+              <FiInfo size={20} />
+              More Info
             </Link>
           </div>
         </div>
-        
-        {/* Episode Count Badge */}
-        {anime.episodes && (
-          <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded">
-            {anime.episodes.eps || anime.episodes.sub || 0} eps
-          </div>
-        )}
-        
-        {/* Type Badge */}
-        {anime.type && (
-          <div className="absolute top-2 left-2 bg-gray-900/80 text-gray-300 text-xs px-2 py-1 rounded">
-            {anime.type}
-          </div>
-        )}
       </div>
       
-      {/* Info */}
-      <div className="p-3">
-        <h3 className="font-semibold text-white text-sm truncate group-hover:text-purple-400 transition-colors">
-          {anime.title}
-        </h3>
-        {anime.alternativeTitle && (
-          <p className="text-gray-500 text-xs mt-1 truncate">
-            {anime.alternativeTitle}
-          </p>
-        )}
-        {anime.rank && (
-          <div className="flex items-center gap-1 mt-1 text-yellow-500 text-xs">
-            <FiStar size={12} />
-            <span>#{anime.rank}</span>
-          </div>
-        )}
-      </div>
-    </Link>
-  )
-}
-
-// Skeleton Card
-const AnimeSkeletonCard = () => {
-  return (
-    <div className="bg-gray-800 rounded-xl overflow-hidden animate-pulse">
-      <div className="aspect-[2/3] bg-gray-700" />
-      <div className="p-3">
-        <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
-        <div className="h-3 bg-gray-700 rounded w-1/2" />
+      {/* Dots Navigation */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
+        {anime.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setActiveIndex(index)}
+            className={`
+              w-2 h-2 rounded-full transition-all
+              ${index === activeIndex 
+                ? 'bg-white w-8' 
+                : 'bg-white/50 hover:bg-white/70'
+              }
+            `}
+            aria-label={`Go to slide ${index + 1}`}
+          />
+        ))}
       </div>
     </div>
   )
 }
 
-export default AnimeBrowsePage
+// Loading State
+const PageLoader = () => (
+  <div className="min-h-screen bg-gray-900">
+    <SkeletonHero />
+    <div className="relative -mt-32 z-10 pb-12">
+      <SkeletonRow title="Trending Now" />
+      <SkeletonRow title="Top Airing" />
+      <SkeletonRow title="Most Popular" />
+    </div>
+  </div>
+)
 
+export default AnimeBrowsePage
