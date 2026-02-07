@@ -18,7 +18,6 @@ import {
   browseByQuery,
   getHomeData,
   getPosterUrl,
-  getSpotlight,
   searchAnime
 } from '../services/anime'
 
@@ -75,48 +74,48 @@ const AnimeBrowsePage = () => {
         setLoading(true)
         setError(null)
         
-        const [home, spotlightData] = await Promise.all([
-          getHomeData(),
-          getSpotlight().catch(() => ({ data: [] }))
-        ])
+        const home = await getHomeData()
         
-        setHomeData(home.data)
-        setSpotlight(spotlightData.data?.slice(0, 5) || [])
+        // Extract data from the nested structure: home.data.spotlight, home.data.trending, etc.
+        const homeData = home.data || {}
+        
+        setHomeData(homeData)
+        setSpotlight(homeData.spotlight?.slice(0, 5) || [])
         
         // Set up sections
         setSections({
           trending: { 
-            data: home.data?.trending || [], 
+            data: homeData.trending || [], 
             loading: false, 
             error: null 
           },
           topAiring: { 
-            data: home.data?.topAiring || [], 
+            data: homeData.topAiring || [], 
             loading: false, 
             error: null 
           },
           mostPopular: { 
-            data: home.data?.mostPopular || [], 
+            data: homeData.mostPopular || [], 
             loading: false, 
             error: null 
           },
           mostFavorite: { 
-            data: home.data?.mostFavorite || [], 
+            data: homeData.mostFavorite || [], 
             loading: false, 
             error: null 
           },
           completed: { 
-            data: home.data?.completed || [], 
+            data: homeData.latestCompleted || [], 
             loading: false, 
             error: null 
           },
           recentlyAdded: { 
-            data: home.data?.recentlyAdded || [], 
+            data: homeData.newAdded || [], 
             loading: false, 
             error: null 
           },
           topUpcoming: { 
-            data: home.data?.topUpcoming || [], 
+            data: homeData.topUpcoming || [], 
             loading: false, 
             error: null 
           },
