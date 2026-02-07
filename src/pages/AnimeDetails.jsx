@@ -6,7 +6,7 @@ import {
   FiPlay,
   FiStar, FiUsers
 } from 'react-icons/fi'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   buildUrl,
   getCharacters,
@@ -133,11 +133,11 @@ const PROXY_BASE = 'https://api.animo.qzz.io/api/v1';
   useEffect(() => { fetchDetails() }, [fetchDetails])
   useEffect(() => { if (details) fetchStream() }, [details, selectedEpisode, fetchStream])
 
+  const navigate = useNavigate()
+
   // --- UI Handlers ---
   const handleEpisodeChange = (num) => {
-    setSelectedEpisode(num)
-    setActiveTab('servers')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    navigate(`/watch/anime/${id}?ep=${num}&provider=${provider}`)
   }
 
   if (loading) return (
