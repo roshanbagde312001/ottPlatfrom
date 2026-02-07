@@ -1,6 +1,6 @@
 // API Configuration - Prioritize local development server, fallback to external API
-const API_LOCAL = 'https://api.animo.qzz.io/api/v1';
-const API_EXTERNAL = 'https://api.animo.qzz.io/api/v1';
+const API_LOCAL = 'http://192.168.7.15:3030/api/v1';
+const API_EXTERNAL = 'http://192.168.7.15:3030/api/v1';
 
 // Auto-detect API base - try local first, fallback to external
 const API_ROOT = API_LOCAL;
@@ -35,7 +35,7 @@ const PROVIDERS = {
 };
 
 // Proxy for streaming - using the API's built-in proxy endpoint
-const PROXY_BASE = 'https://api.animo.qzz.io/api/v1';
+const PROXY_BASE = 'http://192.168.7.15:3030/api/v1';
 
 // Helper function to build URLs from provider templates
 export function buildUrl(providerKey, templateKey, params = {}) {
@@ -61,7 +61,7 @@ export async function safeFetch(url, options = {}) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
         'Accept': 'application/json',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Content-Type': 'application/json',
+        // 'Content-Type': 'application/json',
         ...options.headers
       }
     });
@@ -82,14 +82,20 @@ const DEFAULT_PROVIDER = 'hianime-scrap';
 
 // Helper function for API calls
 const fetchAPI = async (endpoint, options = {}) => {
-  const url = `${API_ROOT}${endpoint}`;
+  // let url = `${API_ROOT}${endpoint}`;
+  let url = endpoint;
+  if(url.includes("stream")){
+    url = `${"https://api.animo.qzz.io/api/v1"}${endpoint}`
+  }else{
+   url = `${API_ROOT}${endpoint}`;
+}
   const response = await fetch(url, {
     ...options,
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
       'Accept': 'application/json',
       'Accept-Language': 'en-US,en;q=0.9',
-      'Content-Type': 'application/json',
+      // 'Content-Type': 'application/json',
       ...options.headers,
     },
   });
@@ -100,6 +106,7 @@ const fetchAPI = async (endpoint, options = {}) => {
 
   return response.json();
 };
+
 
 // ==================== HOME & DISCOVERY ====================
 
@@ -188,8 +195,9 @@ export const getEpisodes = async (id, provider = DEFAULT_PROVIDER) => {
 // Get streaming servers for an episode
 export const getServers = async (id) => {
   // Use the provider-specific template for servers
-  const endpoint = buildUrl('hianime-scrap', 'servers', { id });
-  console.log('[anime.js] Servers endpoint:', endpoint);
+  let endpoint = buildUrl('hianime-scrap', 'servers', { id });
+  endpoint = endpoint.replace("?","/")
+  console.log('[anime.js] Servers endpoint:', endpoint.replace("?","/"));
   
   const response = await fetchAPI(endpoint);
   console.log('[anime.js] Servers response:', response);
@@ -209,6 +217,7 @@ export const getStreamLink = async (streamId, server = 'hd-1', type = 'sub', pro
   console.log('[anime.js] Stream params:', { streamId, server, type, provider });
 
   // Use the internal fetchAPI so the base URL and headers are applied correctly
+  console.log("roshan",endpoint)
   const response = await fetchAPI(endpoint);
   console.log('[anime.js] Stream response:', response);
   return response;

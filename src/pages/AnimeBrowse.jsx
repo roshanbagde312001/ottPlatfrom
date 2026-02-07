@@ -1,28 +1,28 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  FiCalendar,
-  FiClock,
-  FiHeart,
-  FiInfo,
-  FiList,
-  FiPlay,
-  FiSearch,
-  FiStar,
-  FiTrendingUp,
-  FiX
+    FiCalendar,
+    FiClock,
+    FiHeart,
+    FiInfo,
+    FiList,
+    FiPlay,
+    FiSearch,
+    FiStar,
+    FiTrendingUp,
+    FiX
 } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { AnimeCarousel } from '../components/movie/AnimeCarousel'
 import { SkeletonHero, SkeletonRow } from '../components/ui/Skeleton'
 import {
-  browseByQuery,
-  getHomeData,
-  getPosterUrl,
-  searchAnime
+    browseByQuery,
+    getHomeData,
+    getPosterUrl,
+    searchAnime
 } from '../services/anime'
 
 // API Base
-const API_BASE = 'https://api.animo.qzz.io/api/v1'
+const API_BASE = 'http://192.168.7.15:3030/api/v1'
 
 // Provider options
 const PROVIDER_OPTIONS = [
