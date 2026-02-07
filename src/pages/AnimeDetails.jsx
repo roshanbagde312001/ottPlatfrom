@@ -1,655 +1,254 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react'
 import {
   FiArrowLeft,
-  FiCalendar,
-  FiClock,
-  FiDownload,
-  FiExternalLink,
-  FiFilm,
-  FiHeart,
-  FiInfo,
-  FiList,
-  FiLoader,
+  FiHeart, FiInfo, FiList, FiLoader,
   FiPlay,
-  FiStar,
-  FiUsers
-} from 'react-icons/fi';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+  FiStar, FiUsers
+} from 'react-icons/fi'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import {
+  buildUrl,
+  getCharacters,
+  getEpisodes,
+  getNextEpisode,
+  getPosterUrl,
+  getServers,
+  getStreamLink,
+  normalizeAnimeData,
+  safeFetch
+} from '../services/anime'
 
-// API Base
-const API_BASE = 'http://ttt-mauve-rho.vercel.app/anime/animekai';
-
-// Anime Details Page
 const AnimeDetailsPage = () => {
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const titleParam = searchParams.get('title');
-  
-  const [details, setDetails] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedEpisode, setSelectedEpisode] = useState(1);
-  const [servers, setServers] = useState([]);
-  const [loadingServers, setLoadingServers] = useState(false);
-  const [episodes, setEpisodes] = useState([]);
-  const [expandedDescription, setExpandedDescription] = useState(false);
-  const [activeTab, setActiveTab] = useState('servers'); // 'servers' | 'episodes'
-  const [videoUrl, setVideoUrl] = useState(null);
+  const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const provider = searchParams.get('provider') || 'hianime-scrap'
 
-  // Fetch anime details
+  // --- State Management ---
+  const [details, setDetails] = useState(null)
+  const [characters, setCharacters] = useState([])
+  const [episodes, setEpisodes] = useState([])
+  const [servers, setServers] = useState({ sub: [], dub: [] })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [loadingStream, setLoadingStream] = useState(false)
+  const [selectedEpisode, setSelectedEpisode] = useState(1)
+  const [selectedType, setSelectedType] = useState('sub')
+  const [selectedServer, setSelectedServer] = useState(null)
+  const [activeTab, setActiveTab] = useState('episodes')
+  const [showServers, setShowServers] = useState(false)
+  const [nextEpisodeTime, setNextEpisodeTime] = useState(null)
+  const [expandedDescription, setExpandedDescription] = useState(false)
+
+  // --- Fetch Anime Data ---
   const fetchDetails = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
+    setLoading(true)
+    setError(null)
     try {
-      console.log('Fetching details for anime ID:', id);
-      const response = await fetch(`${API_BASE}/info?id=${encodeURIComponent(id)}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to get anime details (HTTP ${response.status})`);
-      }
-      
-      const data = await response.json();
-      console.log('Anime details received:', data);
-      setDetails(data);
-      
-      // Generate episode list from data
-      if (data.episodes && Array.isArray(data.episodes) && data.episodes.length > 0) {
-        setEpisodes(data.episodes);
-      } else if (data.totalEpisodes) {
-        // Generate episode list from totalEpisodes
-        const totalEps = typeof data.totalEpisodes === 'number' ? data.totalEpisodes : 0;
-        const eps = [];
-        for (let i = 1; i <= Math.min(totalEps, 500); i++) {
-          eps.push({ number: i, id: `${id}-episode-${i}` });
+      const infoUrl = buildUrl(provider, 'info', { id });
+      console.log('Info URL:', infoUrl);
+
+      const data = await safeFetch(infoUrl);
+
+      // Normalize anime data structure
+      let animeData = normalizeAnimeData(data, id, provider);
+
+      // Always fetch episodes separately to get real episode IDs
+      try {
+        const episodesResponse = await getEpisodes(id, provider);
+        const extractedEpisodes = episodesResponse.data || [];
+        
+        setEpisodes(extractedEpisodes);
+        if (extractedEpisodes.length > 0) {
+          setSelectedEpisode(extractedEpisodes[0].number);
         }
-        setEpisodes(eps);
+      } catch (epError) {
+        console.warn('Could not fetch episodes:', epError);
+        // Fallback: create episodes from total count
+        const totalEps = animeData.totalEpisodes || animeData.episodes?.eps || 0;
+        if (totalEps > 0) {
+          const fallbackEpisodes = Array.from({ length: totalEps }, (_, i) => ({
+            number: i + 1,
+            id: `${id}::ep=${i + 1}`
+          }));
+          setEpisodes(fallbackEpisodes);
+          setSelectedEpisode(1);
+        }
+      }
+
+      animeData.__provider = provider;
+      setDetails(animeData);
+
+      // Parallel fetch for secondary info
+      Promise.allSettled([
+        getCharacters(id, 1).then(res => setCharacters(res.data?.response || [])),
+        getNextEpisode(id).then(res => setNextEpisodeTime(res.data?.time || null))
+      ])
+    } catch (err) {
+      setError(err.message || 'Failed to load anime details')
+    } finally {
+      setLoading(false)
+    }
+  }, [id, provider])
+
+  // --- Fetch Streaming Links ---
+  const fetchStream = useCallback(async () => {
+    if (!id || !selectedEpisode || episodes.length === 0) return
+    setLoadingStream(true)
+    try {
+      // Get real episode ID from episodes list
+      const currentEpData = episodes.find(ep => ep.number === selectedEpisode)
+      const episodeId = currentEpData?.id || `${id}::ep=${selectedEpisode}`
+
+      if (provider === 'hianime-scrap') {
+        const serversResponse = await getServers(episodeId)
+        const serversData = serversResponse.data || serversResponse
+
+        if (serversData) {
+          setServers({ sub: serversData.sub || [], dub: serversData.dub || [] })
+          const available = serversData[selectedType] || serversData.sub || []
+          if (available.length > 0) {
+            setSelectedServer(available[0])
+            await getStreamLink(episodeId, available[0].name, selectedType, provider)
+          }
+        }
       } else {
-        setEpisodes([]);
+        // For animekai and animepahe, get stream directly
+        const streamResponse = await getStreamLink(episodeId, '', selectedType, provider)
+        if (streamResponse.data) {
+          setServers({ sub: streamResponse.data.sources || [], dub: [] })
+          const available = streamResponse.data.sources || []
+          if (available.length > 0) {
+            setSelectedServer(available[0])
+          }
+        }
       }
     } catch (err) {
-      console.error('Details error:', err);
-      setError(err.message || 'Failed to load anime details');
+      console.error('Stream error:', err)
     } finally {
-      setLoading(false);
+      setLoadingStream(false)
     }
-  }, [id]);
+  }, [id, selectedEpisode, selectedType, provider])
 
-  useEffect(() => {
-    fetchDetails();
-  }, [fetchDetails]);
+  useEffect(() => { fetchDetails() }, [fetchDetails])
+  useEffect(() => { if (details) fetchStream() }, [details, selectedEpisode, fetchStream])
 
-  // Fetch servers and video sources for selected episode
-  const fetchServers = useCallback(async () => {
-    setLoadingServers(true);
-    setServers([]);
-    setVideoUrl(null);
-    
-    try {
-      console.log(`Fetching servers for episode ${selectedEpisode} of anime:`, id);
-      
-      // First try to get servers directly
-      const token = generateToken();
-      const serverUrl = `${API_BASE}/servers/${encodeURIComponent(id)}$ep=${selectedEpisode}$token=${token}`;
-      console.log('Server URL:', serverUrl);
-      
-      const response = await fetch(serverUrl);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to get servers (HTTP ${response.status})`);
-      }
-      
-      const data = await response.json();
-      console.log('Server response:', data);
-      
-      // Extract sources from response
-      if (data.sources && data.sources.length > 0) {
-        setServers(data.sources);
-        if (data.sources[0]?.url) {
-          setVideoUrl(data.sources[0].url);
-        }
-      } else if (data.servers && data.servers.length > 0) {
-        setServers(data.servers);
-        if (data.servers[0]?.url) {
-          setVideoUrl(data.servers[0].url);
-        }
-      } else if (data.url) {
-        setServers([{ name: 'Video', url: data.url, quality: 'HD' }]);
-        setVideoUrl(data.url);
-      } else {
-        setServers([]);
-      }
-    } catch (err) {
-      console.error('Servers error:', err);
-      setServers([]);
-    } finally {
-      setLoadingServers(false);
-    }
-  }, [id, selectedEpisode]);
+  // --- UI Handlers ---
+  const handleEpisodeChange = (num) => {
+    setSelectedEpisode(num)
+    setActiveTab('servers')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
-  useEffect(() => {
-    if (details) {
-      fetchServers();
-    }
-  }, [selectedEpisode, details, fetchServers]);
+  if (loading) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <FiLoader className="animate-spin text-purple-500 text-4xl" />
+    </div>
+  )
 
-  // Generate a simple token for server requests
-  const generateToken = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let token = '';
-    for (let i = 0; i < 16; i++) {
-      token += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return token;
-  };
-
-  // Handle episode change
-  const handleEpisodeChange = (episodeNumber) => {
-    setSelectedEpisode(episodeNumber);
-    setActiveTab('servers');
-  };
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <FiLoader className="animate-spin text-purple-500 text-4xl mx-auto mb-4" />
-          <p className="text-gray-400">Loading anime details...</p>
-          <p className="text-gray-500 text-sm mt-2">Fetching: {id}</p>
-        </div>
+  if (error || !details) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="text-center">
+        <p className="text-red-500 mb-4">{error || 'Anime not found'}</p>
+        <Link to="/anime" className="bg-gray-800 px-6 py-2 rounded-lg text-white inline-flex items-center gap-2">
+          <FiArrowLeft /> Back
+        </Link>
       </div>
-    );
-  }
+    </div>
+  )
 
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 mb-6">
-            <p className="text-red-500 text-lg mb-2">Failed to Load Anime</p>
-            <p className="text-gray-400 text-sm">{error}</p>
-          </div>
-          <Link
-            to="/anime"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <FiArrowLeft size={20} />
-            Back to Anime
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!details) {
-    return null;
-  }
-
-  const anime = details;
-  const displayTitle = anime.title || titleParam || 'Unknown Title';
-  const posterSrc = anime.image || anime.poster || 'https://via.placeholder.com/300x450?text=No+Image';
-  const backdropSrc = anime.cover || anime.backdrop || anime.image;
+  const posterSrc = getPosterUrl(details.poster)
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Hero Section with Backdrop */}
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Hero Section */}
       <div className="relative">
-        {/* Backdrop Image */}
-        {backdropSrc && (
-          <div className="absolute inset-0 h-[50vh] md:h-[60vh] overflow-hidden">
-            <img
-              src={backdropSrc}
-              alt={displayTitle}
-              className="w-full h-full object-cover opacity-30"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/60 to-gray-900" />
-          </div>
-        )}
-        
-        {/* Navigation */}
-        <div className="relative z-10 container mx-auto px-4 py-6">
-          <Link
-            to="/anime"
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors bg-gray-800/50 hover:bg-gray-800 px-4 py-2 rounded-lg"
-          >
-            <FiArrowLeft size={20} />
-            Back to Anime
-          </Link>
+        <div className="absolute inset-0 h-[60vh]">
+          <img src={posterSrc} className="w-full h-full object-cover opacity-20" alt="backdrop" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-900" />
         </div>
-        
-        {/* Hero Content */}
-        <div className="relative z-10 container mx-auto px-4 pb-8">
-          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-            {/* Poster */}
-            <div className="flex-shrink-0 mx-auto md:mx-0 w-full max-w-[280px] md:max-w-[320px]">
-              <div className="relative rounded-xl overflow-hidden shadow-2xl group">
-                <img
-                  src={posterSrc}
-                  alt={displayTitle}
-                  className="w-full aspect-[2/3] object-cover"
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/300x450?text=No+Image';
-                  }}
-                />
-                {/* Play Button Overlay */}
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Link
-                    to="#video-player"
-                    className="transform hover:scale-110 transition-transform"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (episodes.length > 0) {
-                        handleEpisodeChange(1);
-                        document.getElementById('video-player')?.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
-                  >
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                      <FiPlay className="text-white text-2xl md:text-3xl ml-1" />
-                    </div>
-                  </Link>
-                </div>
+
+        <div className="relative z-10 container mx-auto px-4 pt-8 pb-12">
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Sidebar Poster */}
+            <div className="w-full md:w-72 flex-shrink-0">
+              <img src={posterSrc} className="w-full rounded-2xl shadow-2xl border border-gray-700" alt={details.title} />
+              <div className="mt-6 flex flex-col gap-3">
+                <Link to={`/watch/anime/${id}?ep=${selectedEpisode}`} className="bg-purple-600 hover:bg-purple-700 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition">
+                  <FiPlay /> WATCH NOW
+                </Link>
+                <button className="bg-gray-800 hover:bg-gray-700 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                  <FiHeart /> WATCHLIST
+                </button>
               </div>
-              
-              {/* External Links */}
-              {anime.url && (
-                <a
-                  href={anime.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                >
-                  <FiExternalLink size={18} />
-                  View on Source
-                </a>
-              )}
             </div>
-            
-            {/* Info */}
+
+            {/* Content Area */}
             <div className="flex-1">
-              {/* Title */}
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2">
-                {displayTitle}
-              </h1>
+              <h1 className="text-4xl font-black mb-2">{details.title}</h1>
+              <p className="text-gray-400 text-xl mb-6 italic">{details.japanese}</p>
               
-              {/* Japanese Title */}
-              {anime.japaneseTitle && (
-                <p className="text-gray-400 text-lg mb-4">
-                  {anime.japaneseTitle}
+              <div className="flex flex-wrap gap-3 mb-8">
+                <span className="flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-lg border border-yellow-500/20">
+                  <FiStar /> {details.rating}
+                </span>
+                <span className="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-lg border border-purple-500/20">{details.type}</span>
+                <span className="bg-gray-800 px-3 py-1 rounded-lg">{details.status}</span>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="flex items-center gap-2 text-gray-400 text-sm font-bold uppercase tracking-widest mb-2">
+                  <FiInfo /> Synopsis
+                </h3>
+                <p className="text-gray-300 leading-relaxed">
+                  {expandedDescription ? details.synopsis : `${details.synopsis?.slice(0, 350)}...`}
+                  <button onClick={() => setExpandedDescription(!expandedDescription)} className="text-purple-400 ml-2 font-bold">
+                    {expandedDescription ? 'Show Less' : 'Read More'}
+                  </button>
                 </p>
-              )}
-              
-              {/* Rating & Stats */}
-              <div className="flex flex-wrap items-center gap-4 mb-6">
-                {anime.rating && (
-                  <div className="flex items-center gap-1 bg-yellow-500/10 border border-yellow-500/30 px-3 py-1.5 rounded-lg">
-                    <FiStar className="text-yellow-500" />
-                    <span className="text-yellow-500 font-bold">{anime.rating.toFixed(1)}</span>
-                    <span className="text-yellow-500/60 text-sm">/ 10</span>
-                  </div>
-                )}
-                
-                {anime.type && (
-                  <span className="px-3 py-1.5 bg-purple-600/20 border border-purple-500/30 text-purple-400 rounded-lg text-sm font-medium">
-                    {anime.type}
-                  </span>
-                )}
-                
-                {anime.status && (
-                  <span className="px-3 py-1.5 bg-gray-700/50 border border-gray-600/50 text-gray-300 rounded-lg text-sm">
-                    {anime.status}
-                  </span>
-                )}
               </div>
-              
-              {/* Meta Information */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                {anime.releaseDate && (
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <FiCalendar className="text-purple-400" />
-                    <span className="text-sm">{anime.releaseDate}</span>
-                  </div>
-                )}
-                {anime.totalEpisodes && (
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <FiFilm className="text-purple-400" />
-                    <span className="text-sm">{anime.totalEpisodes} Episodes</span>
-                  </div>
-                )}
-                {anime.duration && (
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <FiClock className="text-purple-400" />
-                    <span className="text-sm">{anime.duration}</span>
-                  </div>
-                )}
+
+              {/* Episode Grid */}
+              <div className="bg-gray-800/40 rounded-2xl p-6 border border-gray-700/50">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold flex items-center gap-2"><FiList /> Episodes</h2>
+                  <div className="text-sm text-gray-400">{episodes.length} Episodes Total</div>
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                  {episodes.map(ep => (
+                    <button
+                      key={ep.number}
+                      onClick={() => handleEpisodeChange(ep.number)}
+                      className={`py-2 rounded-lg font-bold transition ${selectedEpisode === ep.number ? 'bg-purple-600 shadow-lg shadow-purple-600/20' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+                    >
+                      {ep.number}
+                    </button>
+                  ))}
+                </div>
               </div>
-              
-              {/* Genres */}
-              {anime.genres && anime.genres.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-gray-400 text-sm mb-2 flex items-center gap-2">
-                    <FiList /> Genres
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {anime.genres.map((genre, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-gray-800 text-purple-400 rounded-full text-sm border border-gray-700"
-                      >
-                        {genre}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Description */}
-              {anime.description && (
-                <div className="mb-6">
-                  <h3 className="text-gray-400 text-sm mb-2 flex items-center gap-2">
-                    <FiInfo /> Synopsis
-                  </h3>
-                  <p className="text-gray-300 leading-relaxed">
-                    {expandedDescription ? anime.description : anime.description.slice(0, 300)}
-                    {anime.description.length > 300 && (
-                      <button
-                        onClick={() => setExpandedDescription(!expandedDescription)}
-                        className="ml-2 text-purple-400 hover:text-purple-300"
-                      >
-                        {expandedDescription ? 'Show Less' : '...Read More'}
-                      </button>
-                    )}
-                  </p>
-                </div>
-              )}
-              
-              {/* Cast/Characters */}
-              {anime.characters && anime.characters.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
-                    <FiUsers /> Characters & Voice Actors
-                  </h3>
-                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                    {anime.characters.slice(0, 10).map((char, index) => (
-                      <div key={index} className="flex-shrink-0 flex items-center gap-3 bg-gray-800/50 rounded-lg p-2 pr-4">
-                        <img
-                          src={char.image || char.image_url}
-                          alt={char.name}
-                          className="w-10 h-10 rounded-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        <div className="flex-shrink-0">
-                          <p className="text-white text-sm font-medium truncate max-w-[100px]">{char.name}</p>
-                          <p className="text-gray-500 text-xs truncate max-w-[100px]">{char.role || char.actor}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Related Anime */}
-              {anime.related && anime.related.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
-                    <FiFilm /> Related Anime
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
-                    {anime.related.slice(0, 6).map((rel, index) => (
-                      <Link
-                        key={index}
-                        to={`/anime/${encodeURIComponent(rel.id)}?title=${encodeURIComponent(rel.title)}`}
-                        className="flex items-center gap-2 bg-gray-800/50 hover:bg-gray-800 rounded-lg p-2 pr-3 transition-colors"
-                      >
-                        <img
-                          src={rel.image || rel.poster}
-                          alt={rel.title}
-                          className="w-8 h-12 object-cover rounded"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        <div>
-                          <p className="text-white text-sm truncate max-w-[120px]">{rel.title}</p>
-                          <p className="text-gray-500 text-xs">{rel.type}</p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Video Player Section */}
-      {episodes.length > 0 && (
-        <div id="video-player" className="container mx-auto px-4 py-8 border-t border-gray-800">
-          <div className="bg-gray-800/50 rounded-xl p-6">
-            {/* Section Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <FiPlay className="text-purple-500" />
-                Watch Episode {selectedEpisode}
-              </h2>
-              
-              {/* Episode Navigation */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleEpisodeChange(Math.max(1, selectedEpisode - 1))}
-                  disabled={selectedEpisode <= 1}
-                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Previous
-                </button>
-                <span className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium">
-                  Ep {selectedEpisode} / {episodes.length}
-                </span>
-                <button
-                  onClick={() => handleEpisodeChange(Math.min(episodes.length, selectedEpisode + 1))}
-                  disabled={selectedEpisode >= episodes.length}
-                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-            
-            {/* Tabs */}
-            <div className="flex gap-2 mb-6 border-b border-gray-700">
-              <button
-                onClick={() => setActiveTab('servers')}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  activeTab === 'servers'
-                    ? 'text-purple-400 border-purple-500'
-                    : 'text-gray-400 border-transparent hover:text-white'
-                }`}
-              >
-                Video Sources
-              </button>
-              <button
-                onClick={() => setActiveTab('episodes')}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  activeTab === 'episodes'
-                    ? 'text-purple-400 border-purple-500'
-                    : 'text-gray-400 border-transparent hover:text-white'
-                }`}
-              >
-                Episode List
-              </button>
-            </div>
-            
-            {/* Tab Content */}
-            {activeTab === 'servers' ? (
-              /* Servers/Sources Tab */
-              <div>
-                {loadingServers ? (
-                  <div className="flex items-center justify-center py-12">
-                    <FiLoader className="animate-spin text-purple-500 text-3xl" />
-                  </div>
-                ) : servers.length > 0 ? (
-                  <div className="grid gap-3">
-                    {servers.map((server, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-4 bg-gray-800 rounded-xl hover:bg-gray-750 transition-colors group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-purple-600/20 rounded-lg flex items-center justify-center">
-                            <FiPlay className="text-purple-400" />
-                          </div>
-                          <div>
-                            <span className="text-white font-medium block">
-                              {server.name || server.quality || `Server ${index + 1}`}
-                            </span>
-                            {server.quality && server.quality !== server.name && (
-                              <span className="text-gray-500 text-xs">{server.quality}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {server.url && (
-                            <>
-                              <a
-                                href={server.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                              >
-                                <FiPlay size={16} />
-                                Watch
-                              </a>
-                              {server.url.includes('download') || server.size ? (
-                                <a
-                                  href={server.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-2 bg-gray-700 hover:bg-gray-600 text-gray-400 hover:text-white rounded-lg transition-colors"
-                                  title="Download"
-                                >
-                                  <FiDownload size={16} />
-                                </a>
-                              ) : null}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 bg-gray-800/30 rounded-xl">
-                    <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FiFilm className="text-gray-500 text-2xl" />
-                    </div>
-                    <p className="text-gray-400 mb-2">No streaming sources available</p>
-                    <p className="text-gray-500 text-sm mb-4">
-                      Try selecting a different episode
-                    </p>
-                    {anime.url && (
-                      <a
-                        href={anime.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                      >
-                        <FiExternalLink size={18} />
-                        Watch on Source Site
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Episodes Tab */
-              <div>
-                {episodes.length > 0 ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
-                    {episodes.map((ep) => (
-                      <button
-                        key={ep.number || ep.id}
-                        onClick={() => handleEpisodeChange(ep.number)}
-                        className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
-                          selectedEpisode === ep.number
-                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-                        }`}
-                      >
-                        {ep.number}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-400">No episode information available</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* Recommendations */}
-      {anime.recommendations && anime.recommendations.length > 0 && (
-        <div className="container mx-auto px-4 py-8 border-t border-gray-800">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-            <FiHeart className="text-red-500" />
-            Recommendations
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {anime.recommendations.slice(0, 12).map((rec, index) => (
-              <Link
-                key={index}
-                to={`/anime/${encodeURIComponent(rec.id)}?title=${encodeURIComponent(rec.title)}`}
-                className="group bg-gray-800 rounded-xl overflow-hidden hover:ring-2 hover:ring-purple-500 transition-all"
-              >
-                <div className="aspect-[2/3] overflow-hidden">
-                  <img
-                    src={rec.image || rec.poster || 'https://via.placeholder.com/200x300?text=No+Image'}
-                    alt={rec.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/200x300?text=No+Image';
-                    }}
-                  />
+
+      {/* Characters */}
+      {characters.length > 0 && (
+        <div className="container mx-auto px-4 py-12 border-t border-gray-800">
+          <h2 className="text-2xl font-bold mb-8 flex items-center gap-2"><FiUsers /> Cast</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {characters.slice(0, 10).map((char, i) => (
+              <div key={i} className="bg-gray-800/30 rounded-xl overflow-hidden flex items-center gap-4 p-2 border border-gray-800">
+                <img src={char.imageUrl} className="w-16 h-16 object-cover rounded-lg" alt={char.name} />
+                <div className="min-w-0">
+                  <p className="font-bold text-sm truncate">{char.name}</p>
+                  <p className="text-xs text-purple-400 truncate">{char.role}</p>
                 </div>
-                <div className="p-3">
-                  <h3 className="text-white text-sm truncate group-hover:text-purple-400 transition-colors">
-                    {rec.title}
-                  </h3>
-                  {rec.rating && (
-                    <p className="text-gray-500 text-xs mt-1 flex items-center gap-1">
-                      <FiStar className="text-yellow-500" />
-                      {rec.rating.toFixed(1)}
-                    </p>
-                  )}
-                </div>
-              </Link>
+              </div>
             ))}
           </div>
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-// Helper function to generate token
-const generateToken = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let token = '';
-  for (let i = 0; i < 16; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
-};
-
-export default AnimeDetailsPage;
-
+export default AnimeDetailsPage

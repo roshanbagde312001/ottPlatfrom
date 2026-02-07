@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import AnimeBrowsePage from './pages/AnimeBrowse'
 import AnimeDetailsPage from './pages/AnimeDetails'
+import AnimePlayerPage from './pages/AnimePlayer'
 import BrowseMoviesPage from './pages/BrowseMovies'
 import HomePage from './pages/Home'
 import MovieDetailsPage from './pages/MovieDetails'
@@ -39,6 +40,9 @@ function App() {
         {/* Anime Details Page */}
         <Route path="anime/:id" element={<AnimeDetailsPage />} />
       </Route>
+      
+      {/* Watch Anime Page (Full screen, no layout) */}
+      <Route path="/watch/anime/:id" element={<AnimePlayerPage />} />
       
       {/* Watch Movie Page (Full screen, no layout) */}
       <Route path="/watch/:type/:id" element={<MoviePlayerPage />} />
