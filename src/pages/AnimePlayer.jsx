@@ -4,17 +4,21 @@ import {
   FiArrowLeft,
   FiChevronLeft,
   FiChevronRight,
-  FiChevronUp,
   FiFilm,
+  FiGrid,
   FiHeart,
   FiList,
   FiLoader,
+  FiMaximize,
+  FiMonitor,
   FiPause,
   FiPlay,
+  FiServer,
   FiSettings,
   FiVolume2,
   FiVolumeX
 } from 'react-icons/fi'
+
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   getAnimeDetails,
@@ -283,38 +287,77 @@ const AnimePlayerPage = () => {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <FiLoader className="animate-spin text-purple-500 text-4xl" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col items-center justify-center">
+      <div className="relative">
+        <div className="absolute inset-0 bg-purple-500 blur-3xl opacity-20 rounded-full"></div>
+        <FiLoader className="animate-spin text-purple-500 text-5xl relative z-10" />
+      </div>
+      <p className="mt-6 text-gray-400 text-lg animate-pulse">Loading anime...</p>
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center text-red-500">
-      {error}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+      <div className="bg-gray-800/80 backdrop-blur-md border border-red-500/30 rounded-2xl p-8 max-w-md text-center shadow-2xl shadow-red-500/10">
+        <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <FiFilm className="text-red-500 text-3xl" />
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">Failed to Load</h2>
+        <p className="text-red-400 mb-6">{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-300 hover:scale-105"
+        >
+          Try Again
+        </button>
+      </div>
     </div>
   )
 
   const posterUrl = getPosterUrl(anime?.poster)
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/90 to-transparent p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+      {/* Enhanced Header with Glassmorphism */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10 p-4 shadow-lg">
         <div className="container mx-auto flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 hover:text-purple-400">
-            <FiArrowLeft size={20} /> <span>Back</span>
+          <button 
+            onClick={() => navigate(-1)} 
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
+          >
+            <FiArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> 
+            <span className="font-medium">Back</span>
           </button>
-          <h1 className="font-semibold truncate max-w-xs md:max-w-md">{anime?.title}</h1>
-          <FiHeart className="cursor-pointer hover:text-red-500" size={20} />
+          
+          <div className="flex items-center gap-3 max-w-md">
+            {posterUrl && (
+              <img 
+                src={posterUrl} 
+                alt={anime?.title} 
+                className="w-10 h-14 object-cover rounded-lg shadow-md hidden md:block"
+              />
+            )}
+            <h1 className="font-bold text-lg md:text-xl truncate max-w-xs md:max-w-md text-white/90">
+              {anime?.title}
+            </h1>
+          </div>
+          
+          <button className="p-2 rounded-full bg-white/10 hover:bg-red-500/20 hover:text-red-400 transition-all duration-300">
+            <FiHeart size={20} />
+          </button>
         </div>
       </div>
 
-      <div className="pt-16">
-        {/* Video Player */}
-        <div className="relative bg-black aspect-video max-h-[75vh] w-full">
+      <div className="pt-20">
+        {/* Enhanced Video Player - Full Height */}
+        <div className="relative bg-black aspect-video w-full shadow-2xl">
           {loadingStream ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <FiLoader className="animate-spin text-purple-500 text-4xl" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900">
+              <div className="relative">
+                <div className="absolute inset-0 bg-purple-500 blur-2xl opacity-30 rounded-full animate-pulse"></div>
+                <FiLoader className="animate-spin text-purple-500 text-5xl relative z-10" />
+              </div>
+              <p className="mt-4 text-gray-400 animate-pulse">Loading stream...</p>
             </div>
           ) : videoUrl ? (
             <VideoPlayer 
@@ -323,67 +366,98 @@ const AnimePlayerPage = () => {
               tracks={streamData?.tracks || []}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <FiFilm size={48} className="mx-auto mb-4" />
-                <p>{selectedServer ? 'Loading stream...' : 'Select a server to start watching'}</p>
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
+              <div className="text-center p-8 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-white/10">
+                <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FiFilm size={40} className="text-purple-400" />
+                </div>
+                <p className="text-gray-300 text-lg font-medium">
+                  {selectedServer ? 'Preparing your stream...' : 'Select a server to start watching'}
+                </p>
+                <p className="text-gray-500 text-sm mt-2">Choose from available servers below</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Controls Bar */}
-        <div className="bg-gray-800 p-4 border-t border-gray-700">
+        {/* Enhanced Controls Bar */}
+        <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-6 border-t border-white/10 shadow-2xl">
           <div className="container mx-auto flex flex-wrap items-center justify-between gap-4">
-            {/* Episode Navigation */}
-            <div className="flex items-center gap-2">
+            {/* Enhanced Episode Navigation */}
+            <div className="flex items-center gap-3 bg-gray-800/80 backdrop-blur-sm rounded-xl p-2 border border-white/5">
               <button 
                 disabled={currentEpisode <= 1}
                 onClick={() => handleEpisodeChange(currentEpisode - 1)}
-                className="p-2 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600"
-              ><FiChevronLeft /></button>
-              <span className="font-medium">Ep {currentEpisode}</span>
+                className="p-3 bg-gray-700 hover:bg-purple-600 disabled:opacity-30 disabled:hover:bg-gray-700 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg"
+              >
+                <FiChevronLeft size={20} />
+              </button>
+              <div className="px-4 py-2 bg-gray-900/50 rounded-lg border border-white/10">
+                <span className="text-gray-400 text-xs uppercase tracking-wider">Episode</span>
+                <p className="font-bold text-lg text-white">{currentEpisode} <span className="text-gray-500 text-sm font-normal">/ {episodes.length}</span></p>
+              </div>
               <button 
                 disabled={currentEpisode >= episodes.length}
                 onClick={() => handleEpisodeChange(currentEpisode + 1)}
-                className="p-2 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600"
-              ><FiChevronRight /></button>
+                className="p-3 bg-gray-700 hover:bg-purple-600 disabled:opacity-30 disabled:hover:bg-gray-700 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg"
+              >
+                <FiChevronRight size={20} />
+              </button>
             </div>
 
-            {/* Provider & Server Selection */}
-            <div className="flex gap-2">
-              <select
-                value={selectedProvider}
-                onChange={(e) => handleProviderChange(e.target.value)}
-                className="px-3 py-2 bg-gray-700 rounded text-white text-sm"
-              >
-                {PROVIDER_OPTIONS.map(provider => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.label}
-                  </option>
-                ))}
-              </select>
+            {/* Enhanced Provider & Server Selection */}
+            <div className="flex gap-3 flex-wrap">
+              <div className="relative">
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => handleProviderChange(e.target.value)}
+                  className="px-4 py-3 bg-gray-800/80 backdrop-blur-sm border border-white/10 rounded-xl text-white text-sm appearance-none pr-10 cursor-pointer hover:bg-gray-700/80 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                >
+                  {PROVIDER_OPTIONS.map(provider => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.label}
+                    </option>
+                  ))}
+                </select>
+                <FiServer className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+              </div>
+              
               <button 
                 onClick={() => setShowEpisodes(!showEpisodes)} 
-                className="flex items-center gap-2 px-4 py-2 bg-gray-700 rounded hover:bg-gray-600"
+                className={`flex items-center gap-2 px-5 py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg border ${
+                  showEpisodes 
+                    ? 'bg-purple-600 border-purple-500 text-white' 
+                    : 'bg-gray-800/80 backdrop-blur-sm border-white/10 hover:bg-gray-700/80'
+                }`}
               >
-                <FiList /> Episodes
+                <FiGrid size={18} /> 
+                <span className="font-medium">Episodes</span>
               </button>
+              
               <button 
                 onClick={() => setShowServers(!showServers)} 
-                className="flex items-center gap-2 px-4 py-2 bg-gray-700 rounded hover:bg-gray-600"
+                className={`flex items-center gap-2 px-5 py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg border ${
+                  showServers 
+                    ? 'bg-purple-600 border-purple-500 text-white' 
+                    : 'bg-gray-800/80 backdrop-blur-sm border-white/10 hover:bg-gray-700/80'
+                }`}
               >
-                <FiSettings /> Server
+                <FiSettings size={18} /> 
+                <span className="font-medium">Server</span>
               </button>
             </div>
             
-            {/* Type Selection (Sub/Dub/Raw) */}
-            <div className="flex bg-gray-700 rounded p-1">
+            {/* Enhanced Type Selection (Sub/Dub/Raw) */}
+            <div className="flex bg-gray-800/80 backdrop-blur-sm rounded-xl p-1.5 border border-white/10">
               {['sub', 'dub', 'raw'].map(type => (
                 <button
                   key={type}
                   onClick={() => handleTypeChange(type)}
-                  className={`px-4 py-1 rounded capitalize ${selectedType === type ? 'bg-purple-600' : ''}`}
+                  className={`px-5 py-2.5 rounded-lg capitalize font-medium transition-all duration-300 ${
+                    selectedType === type 
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25' 
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
                 >
                   {type}
                 </button>
@@ -391,7 +465,7 @@ const AnimePlayerPage = () => {
             </div>
           </div>
 
-          {/* Episode Selector */}
+          {/* Enhanced Episode Selector */}
           {showEpisodes && (
             <EpisodeSelector 
               episodes={episodes} 
@@ -400,7 +474,7 @@ const AnimePlayerPage = () => {
             />
           )}
 
-          {/* Server Selector */}
+          {/* Enhanced Server Selector */}
           {showServers && (
             <ServerSelector 
               servers={servers}
@@ -666,64 +740,80 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
         </video>
       )}
 
-      {/* Controls Overlay */}
+      {/* Enhanced Controls Overlay */}
       <div 
-        className={`absolute inset-0 bg-black/40 flex flex-col justify-between transition-opacity duration-300 ${
-          showControls || !isPlaying ? 'opacity-100' : 'opacity-0'
+        className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-between transition-all duration-500 ${
+          showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Top bar - spacer */}
-        <div className="h-16" />
+        {/* Top bar - spacer with gradient */}
+        <div className="h-20 bg-gradient-to-b from-black/60 to-transparent" />
 
-        {/* Center play button */}
+        {/* Center play button with enhanced styling */}
         <div className="flex-1 flex items-center justify-center">
           <button 
             onClick={() => setIsPlaying(!isPlaying)} 
-            className="p-6 bg-purple-600/90 rounded-full text-white transform transition-transform hover:scale-110"
+            className="p-8 bg-purple-600/90 backdrop-blur-sm rounded-full text-white transform transition-all duration-300 hover:scale-125 hover:bg-purple-500 shadow-2xl shadow-purple-500/30 group"
           >
-            {isPlaying ? <FiPause size={32} /> : <FiPlay size={32} className="ml-1" />}
+            {isPlaying ? (
+              <FiPause size={40} className="group-hover:scale-110 transition-transform" />
+            ) : (
+              <FiPlay size={40} className="ml-1 group-hover:scale-110 transition-transform" />
+            )}
           </button>
         </div>
 
-        {/* Bottom controls */}
-        <div className="p-4 bg-gradient-to-t from-black via-black/60 to-transparent">
-          {/* Progress bar */}
-          <input
-            type="range"
-            className="w-full h-1 mb-4 accent-purple-500 cursor-pointer"
-            min="0"
-            max="100"
-            value={progress || 0}
-            onChange={handleSeek}
-          />
+        {/* Enhanced Bottom controls */}
+        <div className="p-6 bg-gradient-to-t from-black via-black/80 to-transparent">
+          {/* Enhanced Progress bar */}
+          <div className="relative mb-5 group">
+            <input
+              type="range"
+              className="w-full h-2 bg-gray-700/50 rounded-full appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400 transition-all"
+              min="0"
+              max="100"
+              value={progress || 0}
+              onChange={handleSeek}
+              style={{
+                background: `linear-gradient(to right, #9333ea 0%, #a855f7 ${progress}%, rgba(55, 65, 81, 0.5) ${progress}%, rgba(55, 65, 81, 0.5) 100%)`
+              }}
+            />
+            <div className="absolute -top-8 left-0 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity">
+              {formatTime(currentTime)}
+            </div>
+          </div>
           
-          {/* Control buttons */}
+          {/* Enhanced Control buttons */}
           <div className="flex justify-between items-center">
-            <div className="flex gap-4 items-center">
+            <div className="flex gap-5 items-center">
               <button 
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="hover:text-purple-400"
+                className="p-3 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110"
               >
-                {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} />}
+                {isPlaying ? <FiPause size={24} /> : <FiPlay size={24} />}
               </button>
               
               <button 
                 onClick={() => setIsMuted(!isMuted)} 
-                className="hover:text-purple-400"
+                className="p-3 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110"
               >
-                {isMuted ? <FiVolumeX size={20} /> : <FiVolume2 size={20} />}
+                {isMuted ? <FiVolumeX size={24} /> : <FiVolume2 size={24} />}
               </button>
               
-              <span className="text-xs font-mono text-gray-300">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
+              <div className="bg-gray-900/60 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10">
+                <span className="text-sm font-mono text-gray-300">
+                  <span className="text-purple-400 font-semibold">{formatTime(currentTime)}</span>
+                  <span className="mx-2 text-gray-500">/</span>
+                  {formatTime(duration)}
+                </span>
+              </div>
             </div>
             
             <button 
               onClick={handleFullscreen} 
-              className="hover:text-purple-400"
+              className="p-3 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110"
             >
-              <FiChevronUp size={24} />
+              <FiMaximize size={24} />
             </button>
           </div>
         </div>
@@ -732,69 +822,89 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
   )
 }
 
-// Episode Selector Component
+// Enhanced Episode Selector Component
 const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => (
-  <div className="mt-4 grid grid-cols-6 sm:grid-cols-10 gap-2 max-h-40 overflow-y-auto p-2 bg-gray-900 rounded">
-    {episodes.map(ep => (
-      <button 
-        key={ep.number} 
-        onClick={() => onSelect(ep.number)}
-        className={`p-2 text-sm rounded transition ${
-          currentEpisode === ep.number 
-            ? 'bg-purple-600 text-white' 
-            : 'bg-gray-700 hover:bg-gray-600'
-        }`}
-      >
-        {ep.number}
-      </button>
-    ))}
+  <div className="mt-6 bg-gray-900/80 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-2xl">
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-white font-semibold flex items-center gap-2">
+        <FiList className="text-purple-400" /> Select Episode
+      </h3>
+      <span className="text-gray-400 text-sm">{episodes.length} episodes available</span>
+    </div>
+    <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2 max-h-48 overflow-y-auto p-2 custom-scrollbar">
+      {episodes.map(ep => (
+        <button 
+          key={ep.number} 
+          onClick={() => onSelect(ep.number)}
+          className={`p-3 text-sm rounded-xl transition-all duration-300 font-medium ${
+            currentEpisode === ep.number 
+              ? 'bg-gradient-to-br from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/30 scale-105' 
+              : 'bg-gray-800 hover:bg-gray-700 hover:scale-105 text-gray-300 border border-white/5'
+          }`}
+        >
+          {ep.number}
+        </button>
+      ))}
+    </div>
   </div>
 )
 
-// Server Selector Component
+// Enhanced Server Selector Component
 const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange, onTypeChange }) => {
   const availableServers = servers[selectedType] || []
   
   return (
-    <div className="mt-4 p-4 bg-gray-900 rounded">
-      {/* Type tabs */}
-      <div className="flex gap-2 mb-4">
+    <div className="mt-6 bg-gray-900/80 backdrop-blur-md rounded-2xl p-5 border border-white/10 shadow-2xl">
+      {/* Enhanced Type tabs */}
+      <div className="flex gap-2 mb-5">
         {['sub', 'dub', 'raw'].map(type => (
           <button
             key={type}
             onClick={() => onTypeChange(type)}
-            className={`px-4 py-2 rounded capitalize transition ${
+            className={`px-5 py-2.5 rounded-xl capitalize transition-all duration-300 font-medium flex items-center gap-2 ${
               selectedType === type 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-700 hover:bg-gray-600'
+                ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25' 
+                : 'bg-gray-800 hover:bg-gray-700 text-gray-400 border border-white/5'
             }`}
           >
-            {type} ({servers[type]?.length || 0})
+            <span className="w-2 h-2 rounded-full bg-current"></span>
+            {type} 
+            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedType === type ? 'bg-white/20' : 'bg-gray-700'}`}>
+              {servers[type]?.length || 0}
+            </span>
           </button>
         ))}
       </div>
 
-      {/* Server list */}
-      <p className="text-sm text-gray-400 mb-2">Available Servers:</p>
-      {availableServers.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {availableServers.map((server, index) => (
-            <button
-              key={server.name || index}
-              onClick={() => onServerChange(server)}
-              className={`px-4 py-2 text-sm rounded transition ${
-                selectedServer?.name === server.name 
-                  ? 'bg-purple-600 text-white' 
-                  : 'bg-gray-700 hover:bg-gray-600'
-              }`}
-            >
-              {server.name || `Server ${index + 1}`}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-500">No servers available for {selectedType}</p>
-      )}
+      {/* Enhanced Server list */}
+      <div className="mb-3">
+        <p className="text-sm text-gray-400 mb-3 flex items-center gap-2">
+          <FiMonitor className="text-purple-400" /> Available Servers:
+        </p>
+        {availableServers.length > 0 ? (
+          <div className="flex flex-wrap gap-3">
+            {availableServers.map((server, index) => (
+              <button
+                key={server.name || index}
+                onClick={() => onServerChange(server)}
+                className={`px-5 py-3 text-sm rounded-xl transition-all duration-300 font-medium flex items-center gap-2 ${
+                  selectedServer?.name === server.name 
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/30 scale-105' 
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-white/5 hover:scale-105'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${selectedServer?.name === server.name ? 'bg-white' : 'bg-gray-500'}`}></span>
+                {server.name || `Server ${index + 1}`}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-gray-800/50 rounded-xl p-4 text-center border border-white/5">
+            <p className="text-gray-500">No servers available for {selectedType}</p>
+            <p className="text-gray-600 text-sm mt-1">Try switching to a different type</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
