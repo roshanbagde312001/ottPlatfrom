@@ -12,19 +12,21 @@ const Layout = () => {
       {/* Navbar */}
       <Navbar onMenuClick={() => setSidebarOpen(true)} />
       
-      {/* Sidebar */}
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-      />
-      
-      {/* Main Content */}
-      <main className="md:ml-0 pt-16 md:pt-20 min-h-screen">
-        <Outlet />
-      </main>
+      {/* Main Layout Area */}
+      <div className="pt-16 md:pt-20 flex flex-col md:flex-row min-h-screen w-full max-w-full overflow-x-hidden">
+        {/* Sidebar */}
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onClose={() => setSidebarOpen(false)} 
+        />
+        
+        {/* Main Content */}
+        <main className="flex-1 min-w-0 overflow-x-hidden">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }
 
 export default Layout
-

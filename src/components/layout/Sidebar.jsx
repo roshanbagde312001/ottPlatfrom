@@ -33,7 +33,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
         className={`
           fixed top-0 left-0 h-full w-64 bg-gray-900 z-50
           transform transition-transform duration-300 ease-in-out
-          md:translate-x-0 md:static md:z-auto
+          md:relative md:transform-none md:transition-none md:h-auto md:min-h-full
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
@@ -154,4 +154,3 @@ export const Sidebar = ({ isOpen, onClose }) => {
 }
 
 export default Sidebar
-
