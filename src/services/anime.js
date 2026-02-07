@@ -48,7 +48,7 @@ export function buildUrl(providerKey, templateKey, params = {}) {
     const value = encodeURIComponent(String(params[key] || ''));
     url = url.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
   });
-
+  console.log(url)
   return url;
 }
 
@@ -58,7 +58,9 @@ export async function safeFetch(url, options = {}) {
     const response = await fetch(url, {
       ...options,
       headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
         'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
         'Content-Type': 'application/json',
         ...options.headers
       }
@@ -84,6 +86,9 @@ const fetchAPI = async (endpoint, options = {}) => {
   const response = await fetch(url, {
     ...options,
     headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
+      'Accept-Language': 'en-US,en;q=0.9',
       'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -122,7 +127,8 @@ export const getMetaInfo = async () => {
 
 // Search anime by keyword with provider support
 export const searchAnime = async (keyword, page = 1, provider = DEFAULT_PROVIDER) => {
-  const searchUrl = buildUrl(provider, 'search', { query: keyword });
+  let searchUrl = buildUrl(provider, 'search', { query: keyword });
+  searchUrl = `${PROXY_BASE}${searchUrl}`
   console.log('Search URL:', searchUrl);
 
   const data = await safeFetch(searchUrl);
@@ -363,8 +369,8 @@ export function extractEpisodes(data, provider) {
   if (provider === 'hianime-scrap' && data && data.data && Array.isArray(data.data)) {
     return data.data.map((ep, index) => ({
       id: ep.id || `${index + 1}`,
-      number: ep.number || ep.episodeNumber || index + 1,
-      title: ep.title || ep.alternativeTitle || `Episode ${ep.number || ep.episodeNumber || index + 1}`,
+      number: ep.episodeNumber || ep.number || index + 1,
+      title: ep.title || ep.alternativeTitle || `Episode ${ep.episodeNumber || ep.number || index + 1}`,
       isFiller: ep.isFiller || false
     }));
   }
