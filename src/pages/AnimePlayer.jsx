@@ -1,23 +1,29 @@
 import Hls from 'hls.js'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FiAlertCircle,
   FiArrowLeft,
   FiChevronLeft,
   FiChevronRight,
+  FiFastForward,
   FiFilm,
   FiGrid,
   FiHeart,
   FiList,
   FiLoader,
   FiMaximize,
+  FiMinimize,
   FiMonitor,
   FiPause,
   FiPlay,
+  FiRewind,
   FiServer,
   FiSettings,
+  FiSkipForward,
+  FiVolume1,
   FiVolume2,
-  FiVolumeX
+  FiVolumeX,
+  FiZoomIn
 } from 'react-icons/fi'
 
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -48,7 +54,7 @@ const AnimePlayerPage = () => {
   
   const [anime, setAnime] = useState(null)
   const [episodes, setEpisodes] = useState([])
-  const [episodesList, setEpisodesList] = useState([]) // Store real episode IDs from API
+  const [episodesList, setEpisodesList] = useState([])
   const [servers, setServers] = useState({ sub: [], dub: [], raw: [] })
   const [currentEpisode, setCurrentEpisode] = useState(initialEpisode)
   const [episodeData, setEpisodeData] = useState(null)
@@ -63,49 +69,37 @@ const AnimePlayerPage = () => {
   const [showEpisodes, setShowEpisodes] = useState(false)
   const [showServers, setShowServers] = useState(false)
 
-  // Fetch anime details and episodes - only once on mount
+  // Fetch anime details and episodes
   useEffect(() => { 
     const fetchAnimeDetails = async () => {
       try {
         setLoading(true)
-        console.log(`[AnimePlayer] Fetching anime details for ID: ${id}`)
         const detailsData = await getAnimeDetails(id)
-        console.log(`[AnimePlayer] Anime details received:`, detailsData.data)
         setAnime(detailsData.data)
         
-        // Fetch episodes list to get real episode IDs
-        console.log(`[AnimePlayer] Fetching episodes with provider: ${selectedProvider}`)
         const episodesData = await getEpisodes(id, selectedProvider)
-        console.log(`[AnimePlayer] Episodes data received:`, episodesData)
         
         if (episodesData && episodesData.data) {
           setEpisodesList(episodesData.data)
-          console.log(`[AnimePlayer] Episodes list set:`, episodesData.data)
           
-          // Build episodes array from real data
           const eps = episodesData.data.map((ep, index) => ({
             number: ep.number || ep.episodeNumber || index + 1,
-            id: ep.id, // Use real episode ID from API
+            id: ep.id,
             title: ep.title || ep.alternativeTitle || `Episode ${ep.number || ep.episodeNumber || index + 1}`,
             isFiller: ep.isFiller || false
           }))
-          console.log(`[AnimePlayer] Built episodes array:`, eps)
           setEpisodes(eps)
         } else {
-          // Fallback: create episodes from total count
-          console.warn(`[AnimePlayer] No episodes data received, using fallback`)
           const totalEps = detailsData.data.episodes?.eps || 0
           if (totalEps > 0) {
             const eps = Array.from({ length: totalEps }, (_, i) => ({
               number: i + 1,
               id: `${id}::ep=${i + 1}`
             }))
-            console.log(`[AnimePlayer] Fallback episodes array:`, eps)
             setEpisodes(eps)
           }
         }
       } catch (err) {
-        console.error(`[AnimePlayer] Error fetching anime details:`, err)
         setError(err.message || 'Failed to load anime')
       } finally {
         setLoading(false)
@@ -115,34 +109,16 @@ const AnimePlayerPage = () => {
     fetchAnimeDetails()
   }, [id, selectedProvider])
 
-  // Fetch servers - when episode or provider changes
+  // Fetch servers
   useEffect(() => {
-    if (!id || !currentEpisode) {
-      console.log(`[AnimePlayer] Skipping server fetch - missing id or currentEpisode`)
-      return
-    }
-
-    // Don't fetch servers until we have the episodes list
-    if (episodesList.length === 0) {
-      console.log(`[AnimePlayer] Skipping server fetch - episodes list not loaded yet`)
-      return
-    }
+    if (!id || !currentEpisode || episodesList.length === 0) return
 
     const fetchServers = async () => {
       try {
-        // Get real episode ID from episodes list
         const currentEpData = episodesList.find(ep => ep.number === currentEpisode)
         const episodeId = currentEpData?.id || `${id}::ep=${currentEpisode}`
         
-        console.log(`[AnimePlayer] Fetching servers for episode:`, {
-          currentEpisode,
-          episodeId,
-          foundInList: !!currentEpData,
-          episodesListLength: episodesList.length
-        })
-        
         const serversData = await getServers(episodeId)
-        console.log(`[AnimePlayer] Servers data received:`, serversData)
         
         if (serversData && serversData.data) {
           const serverData = serversData.data
@@ -152,96 +128,48 @@ const AnimePlayerPage = () => {
             raw: serverData.raw || []
           }
           setServers(newServers)
-          console.log(`[AnimePlayer] Servers set:`, newServers)
-          
-          // Store episode data from API response
-          setEpisodeData({
-            episode: serverData.episode
-          })
+          setEpisodeData({ episode: serverData.episode })
 
-          // Auto-select first available server for current type
           const availableServers = newServers[selectedType] || newServers.sub || []
           if (availableServers.length > 0) {
-            console.log(`[AnimePlayer] Auto-selecting server:`, availableServers[0])
             setSelectedServer(availableServers[0])
-          } else {
-            console.warn(`[AnimePlayer] No servers available for type: ${selectedType}`)
           }
-        } else {
-          console.warn(`[AnimePlayer] No servers data received`)
         }
       } catch (err) {
-        console.error(`[AnimePlayer] Error fetching servers:`, err)
+        console.error('Error fetching servers:', err)
       }
     }
 
     fetchServers()
   }, [id, currentEpisode, selectedProvider, episodesList])
 
-  // Fetch stream - only when server or type changes
+  // Fetch stream
   useEffect(() => {
-    if (!id || !currentEpisode || !selectedServer) {
-      console.log(`[AnimePlayer] Skipping stream fetch - missing required data:`, {
-        hasId: !!id,
-        hasCurrentEpisode: !!currentEpisode,
-        hasSelectedServer: !!selectedServer
-      })
-      return
-    }
-
-    // Don't fetch stream until we have the episodes list
-    if (episodesList.length === 0) {
-      console.log(`[AnimePlayer] Skipping stream fetch - episodes list not loaded yet`)
-      return
-    }
+    if (!id || !currentEpisode || !selectedServer || episodesList.length === 0) return
 
     const fetchStream = async () => {
       setLoadingStream(true)
       try {
-        // Get real episode ID from episodes list
         const currentEpData = episodesList.find(ep => ep.number === currentEpisode)
         const episodeId = currentEpData?.id || `${id}::ep=${currentEpisode}`
-        
         const serverName = selectedServer.name || selectedServer
         
-        console.log(`[AnimePlayer] Fetching stream:`, {
-          episodeId,
-          serverName,
-          selectedType,
-          selectedProvider,
-          foundInList: !!currentEpData
-        })
-        
-        const streamResponse = await getStreamLink(
-          episodeId, 
-          serverName, 
-          selectedType, 
-          selectedProvider
-        )
-        
-        console.log(`[AnimePlayer] Stream response received:`, streamResponse)
+        const streamResponse = await getStreamLink(episodeId, serverName, selectedType, selectedProvider)
         
         if (streamResponse && streamResponse.data) {
           setStreamData(streamResponse.data)
-          
-          // Get the video URL and proxy it
           const originalUrl = streamResponse.data.link?.file || streamResponse.data.link?.directUrl
-          console.log(`[AnimePlayer] Original stream URL:`, originalUrl)
           
           if (originalUrl) {
             const proxiedUrl = getProxiedStreamUrl(originalUrl)
-            console.log(`[AnimePlayer] Proxied stream URL:`, proxiedUrl)
             setVideoUrl(proxiedUrl)
           } else {
-            console.error(`[AnimePlayer] No stream URL found in response`)
             setError('No stream URL available')
           }
         } else {
-          console.error(`[AnimePlayer] No stream data received`)
           setError('Failed to load stream data')
         }
       } catch (err) {
-        console.error(`[AnimePlayer] Error fetching stream:`, err)
         setError(`Failed to load stream: ${err.message}`)
       } finally {
         setLoadingStream(false)
@@ -249,7 +177,7 @@ const AnimePlayerPage = () => {
     }
 
     fetchStream()
-  }, [id, currentEpisode, selectedType, selectedServer?.id || selectedServer, episodeData, episodesList])
+  }, [id, currentEpisode, selectedType, selectedServer, episodeData, episodesList])
 
   const handleEpisodeChange = (episodeNum) => {
     setCurrentEpisode(episodeNum)
@@ -269,7 +197,6 @@ const AnimePlayerPage = () => {
 
   const handleTypeChange = (type) => {
     setSelectedType(type)
-    // Find first server of new type
     const availableServers = servers[type] || []
     if (availableServers.length > 0) {
       setSelectedServer(availableServers[0])
@@ -287,6 +214,12 @@ const AnimePlayerPage = () => {
     setVideoUrl(null)
     setStreamData(null)
     navigate(`?ep=${currentEpisode}&provider=${provider}`, { replace: true })
+  }
+
+  const handleNextEpisode = () => {
+    if (currentEpisode < episodes.length) {
+      handleEpisodeChange(currentEpisode + 1)
+    }
   }
 
   if (loading) return (
@@ -321,7 +254,7 @@ const AnimePlayerPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* Enhanced Header with Glassmorphism */}
+      {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10 p-4 shadow-lg">
         <div className="container mx-auto flex items-center justify-between">
           <button 
@@ -352,7 +285,7 @@ const AnimePlayerPage = () => {
       </div>
 
       <div className="pt-20">
-        {/* Enhanced Video Player - Full Height */}
+        {/* Video Player */}
         <div className="relative bg-black aspect-video w-full shadow-2xl">
           {loadingStream ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900">
@@ -367,6 +300,9 @@ const AnimePlayerPage = () => {
               src={videoUrl} 
               poster={posterUrl}
               tracks={streamData?.tracks || []}
+              animeId={id}
+              episodeNumber={currentEpisode}
+              onNextEpisode={handleNextEpisode}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
@@ -383,10 +319,10 @@ const AnimePlayerPage = () => {
           )}
         </div>
 
-        {/* Enhanced Controls Bar */}
+        {/* Controls Bar */}
         <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-6 border-t border-white/10 shadow-2xl">
           <div className="container mx-auto flex flex-wrap items-center justify-between gap-4">
-            {/* Enhanced Episode Navigation */}
+            {/* Episode Navigation */}
             <div className="flex items-center gap-3 bg-gray-800/80 backdrop-blur-sm rounded-xl p-2 border border-white/5">
               <button 
                 disabled={currentEpisode <= 1}
@@ -408,7 +344,7 @@ const AnimePlayerPage = () => {
               </button>
             </div>
 
-            {/* Enhanced Provider & Server Selection */}
+            {/* Provider & Server Selection */}
             <div className="flex gap-3 flex-wrap">
               <div className="relative">
                 <select
@@ -450,7 +386,7 @@ const AnimePlayerPage = () => {
               </button>
             </div>
             
-            {/* Enhanced Type Selection (Sub/Dub/Raw) */}
+            {/* Type Selection */}
             <div className="flex bg-gray-800/80 backdrop-blur-sm rounded-xl p-1.5 border border-white/10">
               {['sub', 'dub', 'raw'].map(type => (
                 <button
@@ -468,7 +404,7 @@ const AnimePlayerPage = () => {
             </div>
           </div>
 
-          {/* Enhanced Episode Selector */}
+          {/* Episode Selector */}
           {showEpisodes && (
             <EpisodeSelector 
               episodes={episodes} 
@@ -477,7 +413,7 @@ const AnimePlayerPage = () => {
             />
           )}
 
-          {/* Enhanced Server Selector */}
+          {/* Server Selector */}
           {showServers && (
             <ServerSelector 
               servers={servers}
@@ -493,39 +429,105 @@ const AnimePlayerPage = () => {
   )
 }
 
-// Video Player Component with HLS support and fallback
-const VideoPlayer = ({ src, poster, tracks = [] }) => {
+// Enhanced Video Player Component
+const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextEpisode }) => {
   const videoRef = useRef(null)
   const hlsRef = useRef(null)
   const containerRef = useRef(null)
+  const controlsTimeoutRef = useRef(null)
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+  const touchStartTime = useRef(0)
+  
+  // Basic states
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
+  const [volume, setVolume] = useState(1)
   const [progress, setProgress] = useState(0)
+  const [bufferProgress, setBufferProgress] = useState(0)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [showControls, setShowControls] = useState(true)
   const [error, setError] = useState(null)
   const [useDirectUrl, setUseDirectUrl] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  
+  // Enhanced states
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [quality, setQuality] = useState('auto')
+  const [availableQualities, setAvailableQualities] = useState([])
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true)
+  const [theaterMode, setTheaterMode] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [activeTooltip, setActiveTooltip] = useState(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showSkipOverlay, setShowSkipOverlay] = useState(false)
+  const [autoPlayCountdown, setAutoPlayCountdown] = useState(null)
+  const [isBuffering, setIsBuffering] = useState(false)
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false)
 
-  // Get effective URL (proxy or direct)
+  // Get effective URL
   const getEffectiveUrl = () => {
     if (useDirectUrl) {
-      // Extract original URL from proxied URL
       try {
         const urlObj = new URL(src)
         const originalUrl = urlObj.searchParams.get('url')
         if (originalUrl) {
-          console.log('[VideoPlayer] Using direct URL fallback:', originalUrl)
           return decodeURIComponent(originalUrl)
         }
       } catch (e) {
-        console.error('[VideoPlayer] Error parsing proxy URL:', e)
+        console.error('Error parsing proxy URL:', e)
       }
       return src
     }
     return src
   }
+
+  // Load watch progress
+  useEffect(() => {
+    if (animeId && episodeNumber) {
+      const key = `watch-progress-${animeId}-${episodeNumber}`
+      const saved = localStorage.getItem(key)
+      if (saved) {
+        const { time, timestamp } = JSON.parse(saved)
+        const daysSince = (Date.now() - timestamp) / (1000 * 60 * 60 * 24)
+        if (daysSince < 30 && time > 10) {
+          const video = videoRef.current
+          if (video) {
+            video.currentTime = time
+            setCurrentTime(time)
+          }
+        }
+      }
+    }
+  }, [animeId, episodeNumber])
+
+  // Save watch progress
+  useEffect(() => {
+    if (!animeId || !episodeNumber || !currentTime) return
+    
+    const interval = setInterval(() => {
+      const key = `watch-progress-${animeId}-${episodeNumber}`
+      localStorage.setItem(key, JSON.stringify({
+        time: currentTime,
+        duration: duration,
+        timestamp: Date.now()
+      }))
+    }, 5000)
+    
+    return () => clearInterval(interval)
+  }, [animeId, episodeNumber, currentTime, duration])
+
+  // Load saved preferences
+  useEffect(() => {
+    const savedVolume = localStorage.getItem('player-volume')
+    const savedRate = localStorage.getItem('player-playback-rate')
+    const savedQuality = localStorage.getItem('player-quality')
+    
+    if (savedVolume) setVolume(parseFloat(savedVolume))
+    if (savedRate) setPlaybackRate(parseFloat(savedRate))
+    if (savedQuality) setQuality(savedQuality)
+  }, [])
 
   // Initialize HLS player
   useEffect(() => {
@@ -533,26 +535,21 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
     const effectiveSrc = getEffectiveUrl()
     if (!video || !effectiveSrc) return
 
-    console.log('[VideoPlayer] Initializing player with URL:', effectiveSrc)
     setError(null)
 
-    // Cleanup existing HLS instance
     if (hlsRef.current) {
       hlsRef.current.detachMedia()
       hlsRef.current.destroy()
       hlsRef.current = null
     }
 
-    // Reset video element
     video.pause()
     video.removeAttribute('src')
     video.load()
 
-    // Check if it's an HLS stream
     const isHLS = effectiveSrc.includes('.m3u8') || effectiveSrc.includes('playlist')
 
     if (isHLS && Hls.isSupported()) {
-      // Use HLS.js for HLS streams with improved config
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
@@ -565,8 +562,7 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
         levelLoadingMaxRetry: 3,
         fragLoadingTimeOut: 20000,
         fragLoadingMaxRetry: 3,
-        xhrSetup: function(xhr, url) {
-          // Add custom headers if needed for CORS
+        xhrSetup: function(xhr) {
           xhr.withCredentials = false
         }
       })
@@ -576,41 +572,49 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
       hlsRef.current = hls
 
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        console.log('[VideoPlayer] Manifest parsed, levels:', data.levels.length)
-        setError(null)
-        video.play().catch((err) => {
-          console.log('[VideoPlayer] Auto-play prevented:', err)
-        })
+        const qualities = data.levels.map((level, index) => ({
+          index,
+          height: level.height,
+          width: level.width,
+          bitrate: level.bitrate,
+          label: level.height ? `${level.height}p` : `Quality ${index + 1}`
+        })).sort((a, b) => (b.height || 0) - (a.height || 0))
+        
+        setAvailableQualities([{ index: -1, label: 'Auto' }, ...qualities])
+        
+        if (quality !== 'auto' && hls) {
+          const targetQuality = qualities.find(q => q.label === quality)
+          if (targetQuality) {
+            hls.currentLevel = targetQuality.index
+          }
+        }
+        
+        video.play().catch(() => {})
       })
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('[VideoPlayer] HLS error:', data)
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('[VideoPlayer] Network error, attempting recovery...')
               if (retryCount < 2) {
                 setRetryCount(prev => prev + 1)
                 hls.startLoad()
               } else if (!useDirectUrl) {
-                console.log('[VideoPlayer] Switching to direct URL fallback...')
                 setUseDirectUrl(true)
                 setRetryCount(0)
               } else {
-                setError('Network error: Unable to load stream. Please try again later.')
+                setError('Network error: Unable to load stream.')
                 hls.destroy()
               }
               break
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('[VideoPlayer] Media error, attempting recovery...')
               hls.recoverMediaError()
               break
             default:
               if (!useDirectUrl) {
-                console.log('[VideoPlayer] Fatal error, trying direct URL...')
                 setUseDirectUrl(true)
               } else {
-                setError('Failed to load video stream. The stream may be unavailable.')
+                setError('Failed to load video stream.')
                 hls.destroy()
               }
               break
@@ -618,13 +622,9 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
         }
       })
     } else {
-      // Native playback for MP4 or Safari HLS
-      console.log('[VideoPlayer] Using native playback for:', effectiveSrc)
       video.src = effectiveSrc
       video.load()
-      video.play().catch((err) => {
-        console.log('[VideoPlayer] Auto-play prevented:', err)
-      })
+      video.play().catch(() => {})
     }
 
     return () => {
@@ -651,6 +651,206 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
     }
   }, [isPlaying])
 
+  // Handle volume
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.volume = volume
+    video.muted = isMuted || volume === 0
+    localStorage.setItem('player-volume', volume.toString())
+  }, [volume, isMuted])
+
+  // Handle playback rate
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.playbackRate = playbackRate
+    localStorage.setItem('player-playback-rate', playbackRate.toString())
+  }, [playbackRate])
+
+  // Handle quality change
+  const handleQualityChange = useCallback((newQuality) => {
+    setQuality(newQuality)
+    localStorage.setItem('player-quality', newQuality)
+    
+    if (hlsRef.current) {
+      if (newQuality === 'auto') {
+        hlsRef.current.currentLevel = -1
+      } else {
+        const target = availableQualities.find(q => q.label === newQuality)
+        if (target && target.index >= 0) {
+          hlsRef.current.currentLevel = target.index
+        }
+      }
+    }
+  }, [availableQualities])
+
+  // Toggle subtitles
+  const toggleSubtitles = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+    
+    const textTracks = video.textTracks
+    for (let i = 0; i < textTracks.length; i++) {
+      textTracks[i].mode = subtitlesEnabled ? 'hidden' : 'showing'
+    }
+    setSubtitlesEnabled(!subtitlesEnabled)
+  }, [subtitlesEnabled])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      
+      const video = videoRef.current
+      if (!video) return
+      
+      switch(e.key.toLowerCase()) {
+        case ' ':
+        case 'k':
+          e.preventDefault()
+          setIsPlaying(prev => !prev)
+          break
+        case 'arrowleft':
+        case 'j':
+          e.preventDefault()
+          video.currentTime = Math.max(0, video.currentTime - 10)
+          showSkipFeedback('backward')
+          break
+        case 'arrowright':
+        case 'l':
+          e.preventDefault()
+          video.currentTime = Math.min(video.duration, video.currentTime + 10)
+          showSkipFeedback('forward')
+          break
+        case 'arrowup':
+          e.preventDefault()
+          setVolume(prev => Math.min(1, prev + 0.1))
+          break
+        case 'arrowdown':
+          e.preventDefault()
+          setVolume(prev => Math.max(0, prev - 0.1))
+          break
+        case 'f':
+          e.preventDefault()
+          handleFullscreen()
+          break
+        case 'm':
+          e.preventDefault()
+          setIsMuted(prev => !prev)
+          break
+        case 't':
+          e.preventDefault()
+          setTheaterMode(prev => !prev)
+          break
+        case '0': case '1': case '2': case '3': case '4':
+        case '5': case '6': case '7': case '8': case '9':
+          e.preventDefault()
+          const percent = parseInt(e.key) * 10
+          video.currentTime = (percent / 100) * video.duration
+          break
+      }
+    }
+    
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Fullscreen listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Touch gestures
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+    touchStartTime.current = Date.now()
+  }
+
+  const handleTouchEnd = (e) => {
+    const touchEndX = e.changedTouches[0].clientX
+    const touchEndY = e.changedTouches[0].clientY
+    const touchDuration = Date.now() - touchStartTime.current
+    
+    const deltaX = touchEndX - touchStartX.current
+    const deltaY = touchEndY - touchStartY.current
+    
+    // Double tap
+    if (touchDuration < 300 && Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+      const video = videoRef.current
+      if (video) {
+        const rect = video.getBoundingClientRect()
+        const touchX = touchStartX.current - rect.left
+        
+        if (touchX < rect.width / 2) {
+          video.currentTime = Math.max(0, video.currentTime - 10)
+          showSkipFeedback('backward')
+        } else {
+          video.currentTime = Math.min(video.duration, video.currentTime + 10)
+          showSkipFeedback('forward')
+        }
+      }
+      return
+    }
+    
+    // Horizontal swipe
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      const video = videoRef.current
+      if (video) {
+        const seekAmount = (deltaX / window.innerWidth) * video.duration * 0.5
+        video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seekAmount))
+      }
+    }
+    
+    // Vertical swipe
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50) {
+      const volumeChange = -(deltaY / window.innerHeight) * 0.5
+      setVolume(prev => Math.max(0, Math.min(1, prev + volumeChange)))
+    }
+  }
+
+  // Show skip feedback
+  const showSkipFeedback = (direction) => {
+    setShowSkipOverlay(direction)
+    setTimeout(() => setShowSkipOverlay(false), 800)
+  }
+
+  // Auto-play next episode
+  useEffect(() => {
+    if (!onNextEpisode || !duration) return
+    
+    const video = videoRef.current
+    if (!video) return
+    
+    const checkAutoPlay = () => {
+      const timeLeft = duration - video.currentTime
+      if (timeLeft < 15 && timeLeft > 0 && !autoPlayCountdown) {
+        setAutoPlayCountdown(Math.ceil(timeLeft))
+      } else if (timeLeft <= 0 && autoPlayCountdown) {
+        onNextEpisode()
+      }
+    }
+    
+    const interval = setInterval(checkAutoPlay, 1000)
+    return () => clearInterval(interval)
+  }, [duration, onNextEpisode, autoPlayCountdown])
+
+  // Countdown timer
+  useEffect(() => {
+    if (autoPlayCountdown === null || autoPlayCountdown <= 0) return
+    
+    const timer = setTimeout(() => {
+      setAutoPlayCountdown(prev => prev > 1 ? prev - 1 : 0)
+    }, 1000)
+    
+    return () => clearTimeout(timer)
+  }, [autoPlayCountdown])
+
   const handleTimeUpdate = () => {
     const video = videoRef.current
     if (!video) return
@@ -660,7 +860,15 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
     if (video.duration > 0) {
       setProgress((video.currentTime / video.duration) * 100)
     }
+    
+    if (video.buffered.length > 0) {
+      const bufferedEnd = video.buffered.end(video.buffered.length - 1)
+      setBufferProgress((bufferedEnd / video.duration) * 100)
+    }
   }
+
+  const handleWaiting = () => setIsBuffering(true)
+  const handleCanPlay = () => setIsBuffering(false)
 
   const handleSeek = (e) => {
     const video = videoRef.current
@@ -679,6 +887,31 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
     }
   }
 
+  const handleDoubleClick = (e) => {
+    e.preventDefault()
+    handleFullscreen()
+  }
+
+  const skipForward = () => {
+    const video = videoRef.current
+    if (video) {
+      video.currentTime = Math.min(video.duration, video.currentTime + 10)
+      showSkipFeedback('forward')
+    }
+  }
+
+  const skipBackward = () => {
+    const video = videoRef.current
+    if (video) {
+      video.currentTime = Math.max(0, video.currentTime - 10)
+      showSkipFeedback('backward')
+    }
+  }
+
+  const cancelAutoPlay = () => {
+    setAutoPlayCountdown(null)
+  }
+
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00'
     const mins = Math.floor(seconds / 60)
@@ -689,9 +922,20 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
   return (
     <div
       ref={containerRef}
-      className="relative group w-full h-full bg-black overflow-hidden flex items-center justify-center"
-      onMouseMove={() => setShowControls(true)}
+      className={`relative group w-full bg-black overflow-hidden flex items-center justify-center transition-all duration-300 ${
+        theaterMode ? 'h-[85vh]' : 'h-full'
+      }`}
+      onMouseMove={() => {
+        setShowControls(true)
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+        if (isPlaying) {
+          controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000)
+        }
+      }}
       onMouseLeave={() => isPlaying && setShowControls(false)}
+      onDoubleClick={handleDoubleClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {error ? (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-900 text-red-500">
@@ -724,12 +968,13 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
           className="w-full h-full"
           poster={poster}
           onTimeUpdate={handleTimeUpdate}
+          onWaiting={handleWaiting}
+          onCanPlay={handleCanPlay}
           onClick={() => setIsPlaying(!isPlaying)}
-          muted={isMuted}
+          muted={isMuted || volume === 0}
           playsInline
           crossOrigin="anonymous"
         >
-          {/* Add subtitle tracks */}
           {tracks.map((track, index) => (
             <track
               key={index}
@@ -743,81 +988,301 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
         </video>
       )}
 
+      {/* Buffering Indicator */}
+      {isBuffering && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10 pointer-events-none">
+          <div className="relative">
+            <div className="absolute inset-0 bg-purple-500 blur-2xl opacity-30 rounded-full animate-pulse"></div>
+            <FiLoader className="animate-spin text-purple-500 text-5xl relative z-10" />
+          </div>
+        </div>
+      )}
+
+      {/* Skip Feedback Overlay */}
+      {showSkipOverlay && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-6 transform transition-all duration-300 scale-100 opacity-100">
+            {showSkipOverlay === 'forward' ? (
+              <div className="flex items-center gap-3 text-white">
+                <FiFastForward size={40} className="text-purple-400" />
+                <span className="text-2xl font-bold">+10s</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 text-white">
+                <FiRewind size={40} className="text-purple-400" />
+                <span className="text-2xl font-bold">-10s</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Auto-play Countdown Overlay */}
+      {autoPlayCountdown !== null && onNextEpisode && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-30">
+          <div className="text-center">
+            <p className="text-white text-xl mb-4">Next episode in</p>
+            <div className="text-6xl font-bold text-purple-400 mb-6">{autoPlayCountdown}</div>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={cancelAutoPlay}
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onNextEpisode}
+                className="px-6 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-white transition-all flex items-center gap-2"
+              >
+                <FiSkipForward /> Play Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Enhanced Controls Overlay */}
       <div 
-        className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-between transition-all duration-500 ${
-          showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 flex flex-col justify-between transition-all duration-300 ${
+          showControls || !isPlaying || showSettings ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Top bar - spacer with gradient */}
-        <div className="h-20 bg-gradient-to-b from-black/60 to-transparent" />
-
-        {/* Center play button with enhanced styling */}
-        <div className="flex-1 flex items-center justify-center">
-          <button 
-            onClick={() => setIsPlaying(!isPlaying)} 
-            className="p-8 bg-purple-600/90 backdrop-blur-sm rounded-full text-white transform transition-all duration-300 hover:scale-125 hover:bg-purple-500 shadow-2xl shadow-purple-500/30 group"
-          >
-            {isPlaying ? (
-              <FiPause size={40} className="group-hover:scale-110 transition-transform" />
-            ) : (
-              <FiPlay size={40} className="ml-1 group-hover:scale-110 transition-transform" />
+        {/* Top bar with title and theater mode */}
+        <div className="p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+          <div className="flex items-center gap-3">
+            {poster && (
+              <img src={poster} alt="" className="w-12 h-16 object-cover rounded-lg shadow-lg hidden sm:block" />
             )}
-          </button>
+            <div>
+              <p className="text-white/90 font-semibold text-sm sm:text-base line-clamp-1">
+                Episode {episodeNumber}
+              </p>
+              <p className="text-white/50 text-xs">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setTheaterMode(!theaterMode)}
+              className={`p-2 rounded-lg transition-all duration-300 group relative ${theaterMode ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+              onMouseEnter={() => setActiveTooltip('theater')}
+              onMouseLeave={() => setActiveTooltip(null)}
+            >
+              <FiZoomIn size={20} />
+              {activeTooltip === 'theater' && (
+                <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
+                  Theater Mode (T)
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Enhanced Bottom controls */}
-        <div className="p-6 bg-gradient-to-t from-black via-black/80 to-transparent">
-          {/* Enhanced Progress bar */}
-          <div className="relative mb-5 group">
+        {/* Center play button */}
+        <div className="flex-1 flex items-center justify-center">
+          {!isPlaying && !isBuffering && (
+            <button 
+              onClick={() => setIsPlaying(true)} 
+              className="p-8 bg-purple-600/90 backdrop-blur-sm rounded-full text-white transform transition-all duration-300 hover:scale-125 hover:bg-purple-500 shadow-2xl shadow-purple-500/30 group"
+            >
+              <FiPlay size={40} className="ml-1 group-hover:scale-110 transition-transform" />
+            </button>
+          )}
+        </div>
+
+        {/* Bottom controls */}
+        <div className="p-4 sm:p-6 bg-gradient-to-t from-black via-black/90 to-transparent">
+          {/* Progress bar with buffer indicator */}
+          <div className="relative mb-4 group">
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 left-0 h-1.5 bg-gray-600/50 rounded-full pointer-events-none"
+              style={{ width: `${bufferProgress}%` }}
+            />
             <input
               type="range"
-              className="w-full h-2 bg-gray-700/50 rounded-full appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400 transition-all"
+              className="relative z-10 w-full h-1.5 bg-gray-700/30 rounded-full appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400 transition-all"
               min="0"
               max="100"
               value={progress || 0}
               onChange={handleSeek}
               style={{
-                background: `linear-gradient(to right, #9333ea 0%, #a855f7 ${progress}%, rgba(55, 65, 81, 0.5) ${progress}%, rgba(55, 65, 81, 0.5) 100%)`
+                background: `linear-gradient(to right, #9333ea 0%, #a855f7 ${progress}%, transparent ${progress}%, transparent 100%)`
               }}
             />
-            <div className="absolute -top-8 left-0 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute -top-8 left-0 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
               {formatTime(currentTime)}
             </div>
           </div>
           
-          {/* Enhanced Control buttons */}
-          <div className="flex justify-between items-center">
-            <div className="flex gap-5 items-center">
+          {/* Control buttons row */}
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+            {/* Left controls */}
+            <div className="flex items-center gap-2 sm:gap-3">
               <button 
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="p-3 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110"
+                className="p-2.5 sm:p-3 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110 group relative"
+                onMouseEnter={() => setActiveTooltip('play')}
+                onMouseLeave={() => setActiveTooltip(null)}
               >
-                {isPlaying ? <FiPause size={24} /> : <FiPlay size={24} />}
+                {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} />}
+                {activeTooltip === 'play' && (
+                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
+                    {isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+                  </span>
+                )}
               </button>
               
               <button 
-                onClick={() => setIsMuted(!isMuted)} 
-                className="p-3 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110"
+                onClick={skipBackward}
+                className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110 group relative hidden sm:block"
+                onMouseEnter={() => setActiveTooltip('back')}
+                onMouseLeave={() => setActiveTooltip(null)}
               >
-                {isMuted ? <FiVolumeX size={24} /> : <FiVolume2 size={24} />}
+                <FiRewind size={18} />
+                {activeTooltip === 'back' && (
+                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
+                    -10s (←)
+                  </span>
+                )}
               </button>
               
-              <div className="bg-gray-900/60 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10">
+              <button 
+                onClick={skipForward}
+                className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110 group relative hidden sm:block"
+                onMouseEnter={() => setActiveTooltip('forward')}
+                onMouseLeave={() => setActiveTooltip(null)}
+              >
+                <FiFastForward size={18} />
+                {activeTooltip === 'forward' && (
+                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
+                    +10s (→)
+                  </span>
+                )}
+              </button>
+              
+              <div 
+                className="flex items-center gap-2 bg-white/10 rounded-full p-1.5 sm:p-2 hover:bg-white/20 transition-all group/volume"
+                onMouseEnter={() => setShowVolumeSlider(true)}
+                onMouseLeave={() => setShowVolumeSlider(false)}
+              >
+                <button 
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="p-1 rounded-full hover:bg-white/10 transition-all"
+                >
+                  {isMuted || volume === 0 ? <FiVolumeX size={18} /> : volume < 0.5 ? <FiVolume1 size={18} /> : <FiVolume2 size={18} />}
+                </button>
+                
+                <div className={`overflow-hidden transition-all duration-300 ${showVolumeSlider ? 'w-24 opacity-100' : 'w-0 opacity-0'}`}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="w-full h-1 bg-gray-600 rounded-full appearance-none cursor-pointer accent-purple-500"
+                  />
+                </div>
+              </div>
+              
+              <div className="bg-gray-900/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/10 hidden sm:block">
                 <span className="text-sm font-mono text-gray-300">
                   <span className="text-purple-400 font-semibold">{formatTime(currentTime)}</span>
-                  <span className="mx-2 text-gray-500">/</span>
-                  {formatTime(duration)}
+                  <span className="mx-1 text-gray-500">/</span>
+                  <span className="text-gray-400">{formatTime(duration)}</span>
                 </span>
               </div>
             </div>
             
-            <button 
-              onClick={handleFullscreen} 
-              className="p-3 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110"
-            >
-              <FiMaximize size={24} />
-            </button>
+            {/* Right controls */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Settings button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className={`p-2.5 rounded-full transition-all duration-300 group relative ${showSettings ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-purple-600/80 text-white'}`}
+                  onMouseEnter={() => setActiveTooltip('settings')}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                >
+                  <FiSettings size={20} />
+                  {activeTooltip === 'settings' && (
+                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
+                      Settings
+                    </span>
+                  )}
+                </button>
+                
+                {/* Settings menu */}
+                {showSettings && (
+                  <div className="absolute bottom-full mb-2 right-0 w-48 bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl p-3 z-50">
+                    <div className="space-y-3">
+                      {/* Playback speed */}
+                      <div>
+                        <p className="text-xs text-gray-400 mb-1.5">Speed</p>
+                        <select
+                          value={playbackRate}
+                          onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}
+                          className="w-full px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none focus:border-purple-500"
+                        >
+                          <option value={0.5}>0.5x</option>
+                          <option value={0.75}>0.75x</option>
+                          <option value={1}>1x</option>
+                          <option value={1.25}>1.25x</option>
+                          <option value={1.5}>1.5x</option>
+                          <option value={2}>2x</option>
+                        </select>
+                      </div>
+                      
+                      {/* Quality selector */}
+                      {availableQualities.length > 1 && (
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1.5">Quality</p>
+                          <select
+                            value={quality}
+                            onChange={(e) => handleQualityChange(e.target.value)}
+                            className="w-full px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none focus:border-purple-500"
+                          >
+                            {availableQualities.map((q) => (
+                              <option key={q.label} value={q.label}>
+                                {q.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      
+                      {/* Subtitle toggle */}
+                      {tracks.length > 0 && (
+                        <button
+                          onClick={toggleSubtitles}
+                          className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700 transition-all"
+                        >
+                          <span>Subtitles</span>
+                          <span className={`w-2 h-2 rounded-full ${subtitlesEnabled ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Fullscreen button */}
+              <button
+                onClick={handleFullscreen}
+                className="p-2.5 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 group relative"
+                onMouseEnter={() => setActiveTooltip('fullscreen')}
+                onMouseLeave={() => setActiveTooltip(null)}
+              >
+                {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
+                {activeTooltip === 'fullscreen' && (
+                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
+                    Fullscreen (F)
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -825,13 +1290,12 @@ const VideoPlayer = ({ src, poster, tracks = [] }) => {
   )
 }
 
-// Enhanced Episode Selector Component with Filler Episode Support (AnimeDetails Style)
+// Episode Selector Component
 const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
   const fillerCount = episodes.filter(ep => ep.isFiller).length;
 
   return (
     <div className="mt-6 bg-gray-800/40 rounded-2xl p-6 border border-gray-700/50 shadow-2xl">
-      {/* Header with Episode Count and Filler Info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h3 className="text-xl font-bold flex items-center gap-2">
           <FiList className="text-purple-400" /> Select Episode
@@ -847,15 +1311,13 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
         </div>
       </div>
       
-      {/* Filler Info Banner */}
       {fillerCount > 0 && (
         <div className="mb-4 p-3 bg-amber-400/5 border border-amber-400/10 rounded-lg flex items-start gap-2 text-sm text-amber-200/80">
           <FiAlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>Filler episodes are marked in <span className="text-amber-400 font-medium">amber</span>. These episodes may not follow the main storyline.</span>
+          <span>Filler episodes are marked in <span className="text-amber-400 font-medium">amber</span>.</span>
         </div>
       )}
       
-      {/* Episode Grid - AnimeDetails Style */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
         {episodes.map(ep => {
           const isCurrent = currentEpisode === ep.number;
@@ -875,7 +1337,6 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
                 }
               `}
             >
-              {/* Episode Number Badge */}
               <div className={`
                 inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold mb-2
                 ${isCurrent 
@@ -888,7 +1349,6 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
                 {ep.number}
               </div>
               
-              {/* Filler Badge */}
               {isFiller && (
                 <div className="absolute top-2 right-2">
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-amber-950 uppercase tracking-wider">
@@ -897,17 +1357,13 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
                 </div>
               )}
               
-              {/* Episode Title */}
-              <div className="space-y-1">
-                <p className={`
-                  text-xs font-medium line-clamp-2 leading-relaxed
-                  ${isCurrent ? 'text-white' : isFiller ? 'text-amber-200/70' : 'text-gray-400'}
-                `}>
-                  {ep.title || `Episode ${ep.number}`}
-                </p>
-              </div>
+              <p className={`
+                text-xs font-medium line-clamp-2 leading-relaxed
+                ${isCurrent ? 'text-white' : isFiller ? 'text-amber-200/70' : 'text-gray-400'}
+              `}>
+                {ep.title || `Episode ${ep.number}`}
+              </p>
               
-              {/* Selection Indicator */}
               {isCurrent && (
                 <div className="absolute bottom-2 right-2">
                   <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
@@ -921,13 +1377,12 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
   );
 };
 
-// Enhanced Server Selector Component
+// Server Selector Component
 const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange, onTypeChange }) => {
   const availableServers = servers[selectedType] || []
   
   return (
     <div className="mt-6 bg-gray-900/80 backdrop-blur-md rounded-2xl p-5 border border-white/10 shadow-2xl">
-      {/* Enhanced Type tabs */}
       <div className="flex gap-2 mb-5">
         {['sub', 'dub', 'raw'].map(type => (
           <button
@@ -948,7 +1403,6 @@ const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange,
         ))}
       </div>
 
-      {/* Enhanced Server list */}
       <div className="mb-3">
         <p className="text-sm text-gray-400 mb-3 flex items-center gap-2">
           <FiMonitor className="text-purple-400" /> Available Servers:
