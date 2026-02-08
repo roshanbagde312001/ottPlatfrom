@@ -1139,8 +1139,10 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           })
         }
       } else if (touchDuration < 250 && Math.abs(deltaX) < 20 && Math.abs(deltaY) < 20) {
-        // Single tap - toggle controls
-        setShowControls(prev => !prev)
+        // Single tap - show controls and auto-hide after 4 seconds
+        setShowControls(true)
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 4000)
       }
     }
   }
@@ -1354,7 +1356,11 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           onTimeUpdate={handleTimeUpdate}
           onWaiting={handleWaiting}
           onCanPlay={handleCanPlay}
-          onClick={() => setShowControls(prev => !prev)}
+          onClick={() => {
+            setShowControls(true)
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+            controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 4000)
+          }}
           muted={isMuted || volume === 0}
           playsInline
           crossOrigin="anonymous"
@@ -1447,10 +1453,11 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
       )}
 
       {/* Enhanced Controls Overlay */}
-      <div 
+      <div
         className={`absolute inset-0 flex flex-col justify-between transition-opacity duration-300 ${
           showControls || !isPlaying || showSettings ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Top bar with title and theater mode */}
         <div className="p-4 sm:p-6 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent">
