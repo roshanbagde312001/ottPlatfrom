@@ -10,6 +10,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
     { icon: FiTv, label: 'Movies', to: '/browse?type=movie' },
     { icon: FiTv, label: 'TV Shows', to: '/browse?type=tv' },
     { icon: FiTv, label: 'Anime', to: '/anime' },
+    { icon: FiTv, label: 'Anime Server 2', to: 'https://mustafa-a-khan.github.io/AnimeFlix/' },
     { icon: FiHeart, label: 'Watchlist', to: '/watchlist' },
   ]
   
