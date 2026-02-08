@@ -1,6 +1,7 @@
 {
   "name": "ott-platform",
   "private": true,
+  "homepage": "https://roshanbagde312001.github.io/ottPlatfrom/",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
