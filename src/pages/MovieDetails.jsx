@@ -217,7 +217,7 @@ const MovieDetailsPage = () => {
             {/* Details */}
             <div className="flex-1">
               {/* Name */}
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
                 {details.name}
               </h1>
               
@@ -349,7 +349,7 @@ const MovieDetailsPage = () => {
           {/* Details */}
           <div className="flex-1">
             {/* Title */}
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
               {details.title || details.name}
             </h1>
             
@@ -552,7 +552,7 @@ const MovieDetailsPage = () => {
         {cast.length > 0 && (
           <section className="mt-12">
             <h2 className="text-2xl font-bold text-white mb-6">Top Cast</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
               {cast.map((person) => (
                 <Link
                   key={person.id}

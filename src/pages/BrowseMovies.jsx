@@ -290,7 +290,7 @@ const BrowseMoviesPage = () => {
       </div>
       
       {/* Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 py-8">
         {/* Results Count */}
         <p className="text-gray-400 mb-6">
           {loading ? 'Loading...' : 
@@ -302,8 +302,8 @@ const BrowseMoviesPage = () => {
         
         {/* Loading State */}
         {loading && (
-          <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4'
+          <div className={viewMode === 'grid'
+            ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'
             : 'space-y-4'
           }>
             {[...Array(12)].map((_, i) => (
@@ -342,11 +342,11 @@ const BrowseMoviesPage = () => {
         )}
         
         {/* Movies Grid/List */}
-        {!loading && !error && 
-          ((searchType === 'tv' && tvShows.length > 0) || 
+        {!loading && !error &&
+          ((searchType === 'tv' && tvShows.length > 0) ||
            (searchType !== 'tv' && movies.length > 0)) && (
           <div className={viewMode === 'grid'
-            ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4'
+            ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'
             : 'space-y-4'
           }>
             {(searchType === 'tv' ? tvShows : movies).map((item) => (

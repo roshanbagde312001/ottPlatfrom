@@ -487,6 +487,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const touchStartTime = useRef(0)
+  const lastTapTime = useRef(0)
   
   // Basic states
   const [isPlaying, setIsPlaying] = useState(false)
@@ -515,6 +516,8 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
   const [isBuffering, setIsBuffering] = useState(false)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)
   const [convertedTracks, setConvertedTracks] = useState([])
+  const [brightness, setBrightness] = useState(1)
+  const [showFeedback, setShowFeedback] = useState(null)
 
   // Convert SRT to WebVTT format and remove image sprite references
   const convertSrtToVtt = (srtContent) => {
@@ -677,10 +680,12 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     const savedVolume = localStorage.getItem('player-volume')
     const savedRate = localStorage.getItem('player-playback-rate')
     const savedQuality = localStorage.getItem('player-quality')
-    
+    const savedBrightness = localStorage.getItem('player-brightness')
+
     if (savedVolume) setVolume(parseFloat(savedVolume))
     if (savedRate) setPlaybackRate(parseFloat(savedRate))
     if (savedQuality) setQuality(savedQuality)
+    if (savedBrightness) setBrightness(parseFloat(savedBrightness))
   }, [])
 
   // Initialize HLS player
@@ -813,6 +818,11 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     video.muted = isMuted || volume === 0
     localStorage.setItem('player-volume', volume.toString())
   }, [volume, isMuted])
+
+  // Handle brightness
+  useEffect(() => {
+    localStorage.setItem('player-brightness', brightness.toString())
+  }, [brightness])
 
   // Handle playback rate
   useEffect(() => {
@@ -1004,41 +1014,69 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     const touchEndX = e.changedTouches[0].clientX
     const touchEndY = e.changedTouches[0].clientY
     const touchDuration = Date.now() - touchStartTime.current
-    
+    const currentTime = Date.now()
+
     const deltaX = touchEndX - touchStartX.current
     const deltaY = touchEndY - touchStartY.current
-    
-    // Double tap
-    if (touchDuration < 300 && Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
-      const video = videoRef.current
-      if (video) {
-        const rect = video.getBoundingClientRect()
-        const touchX = touchStartX.current - rect.left
-        
-        if (touchX < rect.width / 2) {
-          video.currentTime = Math.max(0, video.currentTime - 10)
-          showSkipFeedback('backward')
-        } else {
-          video.currentTime = Math.min(video.duration, video.currentTime + 10)
-          showSkipFeedback('forward')
+
+    // Double tap detection - only for seeking on mobile
+    if (touchDuration < 250 && touchDuration > 50 && Math.abs(deltaX) < 20 && Math.abs(deltaY) < 20) {
+      // Check if this is a true double tap (within 300ms of last tap)
+      if (lastTapTime.current && (currentTime - lastTapTime.current) < 300) {
+        const video = videoRef.current
+        if (video) {
+          const rect = video.getBoundingClientRect()
+          const touchX = touchStartX.current - rect.left
+
+          if (touchX < rect.width / 2) {
+            video.currentTime = Math.max(0, video.currentTime - 10)
+            showSkipFeedback('backward')
+          } else {
+            video.currentTime = Math.min(video.duration, video.currentTime + 10)
+            showSkipFeedback('forward')
+          }
         }
-      }
-      return
-    }
-    
-    // Horizontal swipe
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
-      const video = videoRef.current
-      if (video) {
-        const seekAmount = (deltaX / window.innerWidth) * video.duration * 0.5
-        video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seekAmount))
+        // Reset lastTapTime after successful double tap
+        lastTapTime.current = 0
+        return
+      } else {
+        // This is the first tap, store the time for potential double tap
+        lastTapTime.current = currentTime
       }
     }
-    
-    // Vertical swipe
-    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50) {
-      const volumeChange = -(deltaY / window.innerHeight) * 0.5
-      setVolume(prev => Math.max(0, Math.min(1, prev + volumeChange)))
+
+    // Gesture-based volume and brightness control
+    // Only process if it's a clear vertical swipe (not horizontal)
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50 && touchDuration > 100) {
+      const screenWidth = window.innerWidth
+      const startX = touchStartX.current
+
+      // Determine side: left half = brightness, right half = volume
+      const isLeftSide = startX < screenWidth / 2
+
+      // Calculate change amount (scale sensitivity)
+      const changeAmount = -(deltaY / window.innerHeight) * 0.5
+
+      if (isLeftSide) {
+        // Left side: Brightness control
+        setBrightness(prev => {
+          const newBrightness = Math.max(0.3, Math.min(2, prev + changeAmount))
+          setShowFeedback({ type: 'brightness', value: Math.round(newBrightness * 100) })
+          setTimeout(() => setShowFeedback(null), 1500)
+          return newBrightness
+        })
+      } else {
+        // Right side: Volume control
+        setVolume(prev => {
+          const newVolume = Math.max(0, Math.min(1, prev + changeAmount))
+          setShowFeedback({ type: 'volume', value: Math.round(newVolume * 100) })
+          setTimeout(() => setShowFeedback(null), 1500)
+          return newVolume
+        })
+      }
+    } else if (touchDuration < 250 && Math.abs(deltaX) < 20 && Math.abs(deltaY) < 20) {
+      // Single tap - toggle controls
+      setShowControls(prev => !prev)
     }
   }
 
@@ -1117,7 +1155,24 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
 
   const handleDoubleClick = (e) => {
     e.preventDefault()
-    handleFullscreen()
+    // Disable double-click skipping on touch devices to avoid conflicts with touch gestures
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      return
+    }
+
+    const video = videoRef.current
+    if (video) {
+      const rect = video.getBoundingClientRect()
+      const clickX = e.clientX - rect.left
+
+      if (clickX < rect.width / 2) {
+        video.currentTime = Math.max(0, video.currentTime - 10)
+        showSkipFeedback('backward')
+      } else {
+        video.currentTime = Math.min(video.duration, video.currentTime + 10)
+        showSkipFeedback('forward')
+      }
+    }
   }
 
   const skipForward = () => {
@@ -1198,10 +1253,11 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           onTimeUpdate={handleTimeUpdate}
           onWaiting={handleWaiting}
           onCanPlay={handleCanPlay}
-          onClick={() => setIsPlaying(!isPlaying)}
+          onClick={() => setShowControls(prev => !prev)}
           muted={isMuted || volume === 0}
           playsInline
           crossOrigin="anonymous"
+          style={{ filter: `brightness(${brightness})` }}
         >
           {convertedTracks.map((track) => (
             <track
@@ -1240,6 +1296,27 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                 <span className="text-xl font-semibold">-10s</span>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Volume/Brightness Feedback Overlay */}
+      {showFeedback && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20">
+          <div className="bg-black/80 backdrop-blur-md rounded-2xl px-6 py-4 transform transition-all duration-300">
+            <div className="flex items-center gap-3 text-white">
+              {showFeedback.type === 'volume' ? (
+                <>
+                  <FiVolume2 size={24} className="text-white" />
+                  <span className="text-lg font-semibold">{showFeedback.value}%</span>
+                </>
+              ) : (
+                <>
+                  <FiZoomIn size={24} className="text-white" />
+                  <span className="text-lg font-semibold">{showFeedback.value}%</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
