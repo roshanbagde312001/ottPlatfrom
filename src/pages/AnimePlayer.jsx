@@ -519,6 +519,14 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
   const [brightness, setBrightness] = useState(1)
   const [showFeedback, setShowFeedback] = useState(null)
 
+  // Zoom states
+  const [zoomMode, setZoomMode] = useState('fit') // 'fit', 'fill', 'stretch', 'zoom'
+  const [pinchStartDistance, setPinchStartDistance] = useState(0)
+  const [pinchStartZoom, setPinchStartZoom] = useState(1)
+  const [currentZoom, setCurrentZoom] = useState(1)
+  const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 })
+  const [isZooming, setIsZooming] = useState(false)
+
   // Convert SRT to WebVTT format and remove image sprite references
   const convertSrtToVtt = (srtContent) => {
   const blocks = srtContent
@@ -824,6 +832,14 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     localStorage.setItem('player-brightness', brightness.toString())
   }, [brightness])
 
+  // Handle zoom mode
+  useEffect(() => {
+    localStorage.setItem('player-zoom-mode', zoomMode)
+    // Reset zoom when changing modes
+    setCurrentZoom(1)
+    setZoomOffset({ x: 0, y: 0 })
+  }, [zoomMode])
+
   // Handle playback rate
   useEffect(() => {
     const video = videoRef.current
@@ -981,6 +997,10 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           e.preventDefault()
           setTheaterMode(prev => !prev)
           break
+        case 'z':
+          e.preventDefault()
+          cycleZoomMode()
+          break
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9':
           e.preventDefault()
@@ -1008,6 +1028,42 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
     touchStartTime.current = Date.now()
+
+    // Handle pinch start for zoom
+    if (e.touches.length === 2) {
+      const touch1 = e.touches[0]
+      const touch2 = e.touches[1]
+      const distance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) +
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      )
+      setPinchStartDistance(distance)
+      setPinchStartZoom(currentZoom)
+      setIsZooming(true)
+    }
+  }
+
+  const handleTouchMove = (e) => {
+    // Handle pinch zoom
+    if (e.touches.length === 2 && pinchStartDistance > 0) {
+      e.preventDefault()
+      const touch1 = e.touches[0]
+      const touch2 = e.touches[1]
+      const distance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) +
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      )
+
+      const scale = distance / pinchStartDistance
+      const newZoom = Math.max(0.5, Math.min(3, pinchStartZoom * scale))
+
+      setCurrentZoom(newZoom)
+      if (newZoom <= 1) {
+        setZoomMode('fit') // Switch to fit when zoomed out
+      } else {
+        setZoomMode('zoom') // Switch to zoom mode when pinching in
+      }
+    }
   }
 
   const handleTouchEnd = (e) => {
@@ -1016,67 +1072,76 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     const touchDuration = Date.now() - touchStartTime.current
     const currentTime = Date.now()
 
-    const deltaX = touchEndX - touchStartX.current
-    const deltaY = touchEndY - touchStartY.current
-
-    // Double tap detection - only for seeking on mobile
-    if (touchDuration < 250 && touchDuration > 50 && Math.abs(deltaX) < 20 && Math.abs(deltaY) < 20) {
-      // Check if this is a true double tap (within 300ms of last tap)
-      if (lastTapTime.current && (currentTime - lastTapTime.current) < 300) {
-        const video = videoRef.current
-        if (video) {
-          const rect = video.getBoundingClientRect()
-          const touchX = touchStartX.current - rect.left
-
-          if (touchX < rect.width / 2) {
-            video.currentTime = Math.max(0, video.currentTime - 10)
-            showSkipFeedback('backward')
-          } else {
-            video.currentTime = Math.min(video.duration, video.currentTime + 10)
-            showSkipFeedback('forward')
-          }
-        }
-        // Reset lastTapTime after successful double tap
-        lastTapTime.current = 0
-        return
-      } else {
-        // This is the first tap, store the time for potential double tap
-        lastTapTime.current = currentTime
-      }
+    // Reset pinch state
+    if (e.touches.length < 2) {
+      setPinchStartDistance(0)
+      setIsZooming(false)
     }
 
-    // Gesture-based volume and brightness control
-    // Only process if it's a clear vertical swipe (not horizontal)
-    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50 && touchDuration > 100) {
-      const screenWidth = window.innerWidth
-      const startX = touchStartX.current
+    // Only process single touch gestures if not zooming
+    if (e.touches.length === 0 && !isZooming) {
+      const deltaX = touchEndX - touchStartX.current
+      const deltaY = touchEndY - touchStartY.current
 
-      // Determine side: left half = brightness, right half = volume
-      const isLeftSide = startX < screenWidth / 2
+      // Double tap detection - only for seeking on mobile
+      if (touchDuration < 250 && touchDuration > 50 && Math.abs(deltaX) < 20 && Math.abs(deltaY) < 20) {
+        // Check if this is a true double tap (within 300ms of last tap)
+        if (lastTapTime.current && (currentTime - lastTapTime.current) < 300) {
+          const video = videoRef.current
+          if (video) {
+            const rect = video.getBoundingClientRect()
+            const touchX = touchStartX.current - rect.left
 
-      // Calculate change amount (scale sensitivity)
-      const changeAmount = -(deltaY / window.innerHeight) * 0.5
-
-      if (isLeftSide) {
-        // Left side: Brightness control
-        setBrightness(prev => {
-          const newBrightness = Math.max(0.3, Math.min(2, prev + changeAmount))
-          setShowFeedback({ type: 'brightness', value: Math.round(newBrightness * 100) })
-          setTimeout(() => setShowFeedback(null), 1500)
-          return newBrightness
-        })
-      } else {
-        // Right side: Volume control
-        setVolume(prev => {
-          const newVolume = Math.max(0, Math.min(1, prev + changeAmount))
-          setShowFeedback({ type: 'volume', value: Math.round(newVolume * 100) })
-          setTimeout(() => setShowFeedback(null), 1500)
-          return newVolume
-        })
+            if (touchX < rect.width / 2) {
+              video.currentTime = Math.max(0, video.currentTime - 10)
+              showSkipFeedback('backward')
+            } else {
+              video.currentTime = Math.min(video.duration, video.currentTime + 10)
+              showSkipFeedback('forward')
+            }
+          }
+          // Reset lastTapTime after successful double tap
+          lastTapTime.current = 0
+          return
+        } else {
+          // This is the first tap, store the time for potential double tap
+          lastTapTime.current = currentTime
+        }
       }
-    } else if (touchDuration < 250 && Math.abs(deltaX) < 20 && Math.abs(deltaY) < 20) {
-      // Single tap - toggle controls
-      setShowControls(prev => !prev)
+
+      // Gesture-based volume and brightness control
+      // Only process if it's a clear vertical swipe (not horizontal)
+      if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50 && touchDuration > 100) {
+        const screenWidth = window.innerWidth
+        const startX = touchStartX.current
+
+        // Determine side: left half = brightness, right half = volume
+        const isLeftSide = startX < screenWidth / 2
+
+        // Calculate change amount (scale sensitivity)
+        const changeAmount = -(deltaY / window.innerHeight) * 0.5
+
+        if (isLeftSide) {
+          // Left side: Brightness control
+          setBrightness(prev => {
+            const newBrightness = Math.max(0.3, Math.min(2, prev + changeAmount))
+            setShowFeedback({ type: 'brightness', value: Math.round(newBrightness * 100) })
+            setTimeout(() => setShowFeedback(null), 1500)
+            return newBrightness
+          })
+        } else {
+          // Right side: Volume control
+          setVolume(prev => {
+            const newVolume = Math.max(0, Math.min(1, prev + changeAmount))
+            setShowFeedback({ type: 'volume', value: Math.round(newVolume * 100) })
+            setTimeout(() => setShowFeedback(null), 1500)
+            return newVolume
+          })
+        }
+      } else if (touchDuration < 250 && Math.abs(deltaX) < 20 && Math.abs(deltaY) < 20) {
+        // Single tap - toggle controls
+        setShowControls(prev => !prev)
+      }
     }
   }
 
@@ -1195,6 +1260,41 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     setAutoPlayCountdown(null)
   }
 
+  // Cycle through zoom modes
+  const cycleZoomMode = useCallback(() => {
+    const modes = ['fit', 'fill', 'stretch', 'zoom']
+    const currentIndex = modes.indexOf(zoomMode)
+    const nextIndex = (currentIndex + 1) % modes.length
+    const nextMode = modes[nextIndex]
+    setZoomMode(nextMode)
+
+    // Set default zoom level when entering zoom mode
+    if (nextMode === 'zoom' && currentZoom <= 1) {
+      setCurrentZoom(1.5)
+    }
+  }, [zoomMode, currentZoom])
+
+  // Get zoom transform style
+  const getZoomStyle = () => {
+    switch (zoomMode) {
+      case 'fit':
+        return { objectFit: 'contain', transform: 'scale(1)', transformOrigin: 'center' }
+      case 'fill':
+        return { objectFit: 'cover', transform: 'scale(1)', transformOrigin: 'center' }
+      case 'stretch':
+        return { objectFit: 'fill', transform: 'scale(1)', transformOrigin: 'center' }
+      case 'zoom':
+        return {
+          objectFit: 'cover',
+          transform: `scale(${currentZoom}) translate(${zoomOffset.x}px, ${zoomOffset.y}px)`,
+          transformOrigin: 'center',
+          transition: isZooming ? 'none' : 'transform 0.3s ease-out'
+        }
+      default:
+        return { objectFit: 'contain', transform: 'scale(1)', transformOrigin: 'center' }
+    }
+  }
+
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00'
     const mins = Math.floor(seconds / 60)
@@ -1218,6 +1318,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
       onMouseLeave={() => isPlaying && setShowControls(false)}
       onDoubleClick={handleDoubleClick}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       {error ? (
@@ -1257,7 +1358,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           muted={isMuted || volume === 0}
           playsInline
           crossOrigin="anonymous"
-          style={{ filter: `brightness(${brightness})` }}
+          style={{ filter: `brightness(${brightness})`, ...getZoomStyle() }}
         >
           {convertedTracks.map((track) => (
             <track
@@ -1378,6 +1479,20 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
               {activeTooltip === 'theater' && (
                 <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900/90 text-white text-xs rounded-md whitespace-nowrap border border-white/10">
                   Theater Mode (T)
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={cycleZoomMode}
+              className={`p-2 rounded-lg transition-all duration-200 group relative bg-white/10 hover:bg-white/20 text-white/80 hover:text-white`}
+              onMouseEnter={() => setActiveTooltip('zoom')}
+              onMouseLeave={() => setActiveTooltip(null)}
+            >
+              <FiZoomIn size={18} />
+              {activeTooltip === 'zoom' && (
+                <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900/90 text-white text-xs rounded-md whitespace-nowrap border border-white/10">
+                  Zoom: {zoomMode.charAt(0).toUpperCase() + zoomMode.slice(1)} (Z)
                 </span>
               )}
             </button>
