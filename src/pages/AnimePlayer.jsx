@@ -274,8 +274,7 @@ const AnimePlayerPage = () => {
   if (loading) return (
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center">
       <div className="relative">
-        <div className="absolute inset-0 bg-violet-500/20 blur-2xl rounded-full animate-pulse"></div>
-        <FiLoader className="animate-spin text-violet-500 text-5xl relative z-10" />
+        <FiLoader className="animate-spin text-white text-5xl relative z-10" />
       </div>
       <p className="mt-8 text-gray-500 text-sm tracking-wide uppercase">Loading anime...</p>
     </div>
@@ -356,8 +355,8 @@ const AnimePlayerPage = () => {
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-950">
               <div className="text-center p-8">
-                <div className="w-16 h-16 bg-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <FiFilm size={32} className="text-violet-400" />
+                <div className="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <FiFilm size={32} className="text-gray-400" />
                 </div>
                 <p className="text-gray-300 text-base font-medium">
                   {selectedServer ? 'Preparing your stream...' : 'Select a server to start watching'}
@@ -373,10 +372,10 @@ const AnimePlayerPage = () => {
           <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
             {/* Episode Navigation */}
             <div className="flex items-center gap-2 bg-gray-900/80 rounded-xl p-1.5 border border-white/5">
-              <button 
+              <button
                 disabled={currentEpisode <= 1}
                 onClick={() => handleEpisodeChange(currentEpisode - 1)}
-                className="p-2.5 bg-gray-800 hover:bg-violet-600 disabled:opacity-30 disabled:hover:bg-gray-800 rounded-lg transition-all duration-200"
+                className="p-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 rounded-lg transition-all duration-200"
               >
                 <FiChevronLeft size={18} />
               </button>
@@ -399,7 +398,7 @@ const AnimePlayerPage = () => {
                 <select
                   value={selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value)}
-                  className="px-3 py-2.5 bg-gray-900/80 border border-white/10 rounded-xl text-white text-sm appearance-none pr-9 cursor-pointer hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:border-violet-500/50 min-w-[120px]"
+                  className="px-3 py-2.5 bg-gray-900/80 border border-white/10 rounded-xl text-white text-sm appearance-none pr-9 cursor-pointer hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:border-white/50 min-w-[120px]"
                 >
                   {PROVIDER_OPTIONS.map(provider => (
                     <option key={provider.id} value={provider.id}>
@@ -410,15 +409,15 @@ const AnimePlayerPage = () => {
                 <FiServer className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={14} />
               </div>
               
-              <button 
-                onClick={() => setShowEpisodes(!showEpisodes)} 
+              <button
+                onClick={() => setShowEpisodes(!showEpisodes)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium border ${
-                  showEpisodes 
-                    ? 'bg-violet-600 border-violet-500 text-white' 
+                  showEpisodes
+                    ? 'bg-white border-white text-black'
                     : 'bg-gray-900/80 border-white/10 hover:bg-gray-800 text-gray-300'
                 }`}
               >
-                <FiGrid size={16} /> 
+                <FiGrid size={16} />
                 <span>Episodes</span>
               </button>
               
@@ -442,8 +441,8 @@ const AnimePlayerPage = () => {
                   key={type}
                   onClick={() => handleTypeChange(type)}
                   className={`px-4 py-2 rounded-lg capitalize text-sm font-medium transition-all duration-200 ${
-                    selectedType === type 
-                      ? 'bg-violet-600 text-white' 
+                    selectedType === type
+                      ? 'bg-white text-black'
                       : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
@@ -518,57 +517,53 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
 
   // Convert SRT to WebVTT format and remove image sprite references
   const convertSrtToVtt = (srtContent) => {
-    // Split content by double newlines to get each subtitle block
-    const blocks = srtContent.split(/\n\s*\n/)
-    const cues = []
-    
-    blocks.forEach(block => {
-      const lines = block.split('\n').filter(line => line.trim() !== '')
-      if (lines.length < 2) return
-      
-      // First line should be the index number (1, 2, 3, etc.)
-      const indexLine = lines[0].trim()
-      if (!/^\d+$/.test(indexLine)) return
-      
-      // Second line should be the timestamp
-      const timeLine = lines[1].trim()
-      if (!timeLine.includes('-->')) return
-      
-      // Convert SRT timestamp to VTT (comma to dot)
-      const vttTime = timeLine.replace(/,/g, '.')
-      
-      // Remaining lines are the dialogue text
-      const dialogueLines = lines.slice(2)
-      const cleanedDialogue = dialogueLines.map(line => {
-        // Remove sprite artifacts but keep the actual dialogue
-        return line
-          .replace(/sprite-\d+\.[a-z]+(#[a-z0-9\-_]*)?/gi, '') // Remove sprite files
-          .replace(/\bsprite-\d+\b/gi, '') // Remove standalone sprite-N
-          .replace(/#[a-z0-9\-_]+/gi, '') // Remove hash fragments
-          .replace(/={1,}/g, '') // Remove = signs
-          .replace(/{\s*\\[^}]*}/g, '') // Remove ASS style tags
-          .trim()
-      }).filter(line => line.length > 0)
-      
-      // Only add if we have dialogue text
-      if (cleanedDialogue.length > 0) {
-        cues.push({
-          time: vttTime,
-          text: cleanedDialogue.join('\n')
-        })
-      }
-    })
-    
-    // Build WebVTT output
-    let vtt = 'WEBVTT\n\n'
-    
-    cues.forEach(cue => {
-      vtt += cue.time + '\n'
-      vtt += cue.text + '\n\n'
-    })
-    
-    return vtt
+  const blocks = srtContent
+    .replace(/\r/g, '')
+    .split(/\n\s*\n/)
+
+  let vtt = 'WEBVTT\n\n'
+
+  for (const block of blocks) {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean)
+    if (lines.length < 2) continue
+
+    let timeLineIndex = 0
+
+    // If first line is index number, skip it
+    if (/^\d+$/.test(lines[0])) {
+      timeLineIndex = 1
+    }
+
+    const timeLine = lines[timeLineIndex]
+    if (!timeLine || !timeLine.includes('-->')) continue
+
+    // Convert SRT timestamp → VTT
+    const vttTime = timeLine.replace(/,/g, '.')
+
+    const dialogueLines = lines.slice(timeLineIndex + 1)
+
+   const cleanedDialogue = dialogueLines
+  .map(line => {
+    return line
+      .replace(/xywh=\d+,\d+,\d+,\d+/gi, '') // REMOVE xywh coords
+      .replace(/^[^a-zA-Z0-9]*[a-z0-9_\-]{2,20}={1,3}/gi, '') // REMOVE prefix junk
+      .replace(/{\\.*?}/g, '') // ASS tags
+      .replace(/sprite-\d+\.[a-z]+/gi, '') // sprite refs
+      .replace(/\b\d{3,4},\d{3,4},\d{3,4},\d{3,4}\b/g, '') // coordinate junk
+      .replace(/={2,}/g, '') // extra ==
+      .trim()
+  })
+  .filter(line => line.length > 0)
+
+
+    if (!cleanedDialogue.length) continue
+
+    vtt += vttTime + '\n'
+    vtt += cleanedDialogue.join('\n') + '\n\n'
   }
+
+  return vtt
+}
 
   // Fetch and convert subtitle with fallback strategies
   const fetchAndConvertSubtitle = async (originalUrl) => {
@@ -1224,8 +1219,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
       {isBuffering && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 pointer-events-none">
           <div className="relative">
-            <div className="absolute inset-0 bg-violet-500/30 blur-xl rounded-full animate-pulse"></div>
-            <FiLoader className="animate-spin text-violet-400 text-4xl relative z-10" />
+            <FiLoader className="animate-spin text-white text-4xl relative z-10" />
           </div>
         </div>
       )}
@@ -1236,12 +1230,12 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           <div className="bg-black/80 backdrop-blur-md rounded-2xl px-8 py-6 transform transition-all duration-300">
             {showSkipOverlay === 'forward' ? (
               <div className="flex items-center gap-3 text-white">
-                <FiFastForward size={32} className="text-violet-400" />
+                <FiFastForward size={32} className="text-white" />
                 <span className="text-xl font-semibold">+10s</span>
               </div>
             ) : (
               <div className="flex items-center gap-3 text-white">
-                <FiRewind size={32} className="text-violet-400" />
+                <FiRewind size={32} className="text-white" />
                 <span className="text-xl font-semibold">-10s</span>
               </div>
             )}
@@ -1254,7 +1248,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
         <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-30">
           <div className="text-center">
             <p className="text-gray-400 text-sm uppercase tracking-wider mb-4">Next episode in</p>
-            <div className="text-5xl font-bold text-violet-400 mb-8">{autoPlayCountdown}</div>
+            <div className="text-5xl font-bold text-white mb-8">{autoPlayCountdown}</div>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={cancelAutoPlay}
@@ -1264,7 +1258,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
               </button>
               <button
                 onClick={onNextEpisode}
-                className="px-5 py-2 bg-violet-600 hover:bg-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-200 flex items-center gap-2"
+                className="px-5 py-2 bg-white hover:bg-gray-200 rounded-lg text-black text-sm font-medium transition-all duration-200 flex items-center gap-2"
               >
                 <FiSkipForward size={16} /> Play Now
               </button>
@@ -1298,7 +1292,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTheaterMode(!theaterMode)}
-              className={`p-2 rounded-lg transition-all duration-200 group relative ${theaterMode ? 'bg-violet-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white'}`}
+              className={`p-2 rounded-lg transition-all duration-200 group relative ${theaterMode ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white'}`}
               onMouseEnter={() => setActiveTooltip('theater')}
               onMouseLeave={() => setActiveTooltip(null)}
             >
@@ -1315,9 +1309,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
         {/* Center play button */}
         <div className="flex-1 flex items-center justify-center">
           {!isPlaying && !isBuffering && (
-            <button 
-              onClick={() => setIsPlaying(true)} 
-              className="p-6 bg-violet-600/90 backdrop-blur-sm rounded-full text-white transform transition-all duration-200 hover:scale-110 hover:bg-violet-500 shadow-xl shadow-violet-500/20 group"
+            <button
+              onClick={() => setIsPlaying(true)}
+              className="p-6 bg-white rounded-full text-black transform transition-all duration-200 hover:scale-110 group"
             >
               <FiPlay size={32} className="ml-1 group-hover:scale-105 transition-transform" />
             </button>
@@ -1334,13 +1328,13 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
             />
             <input
               type="range"
-              className="relative z-10 w-full h-1.5 bg-gray-700/30 rounded-full appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400 transition-all"
+              className="relative z-10 w-full h-1 bg-white/30 rounded-full appearance-none cursor-pointer transition-all"
               min="0"
               max="100"
               value={progress || 0}
               onChange={handleSeek}
               style={{
-                background: `linear-gradient(to right, #9333ea 0%, #a855f7 ${progress}%, transparent ${progress}%, transparent 100%)`
+                background: `linear-gradient(to right, #ffffff 0%, #ffffff ${progress}%, transparent ${progress}%, transparent 100%)`
               }}
             />
             <div className="absolute -top-8 left-0 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -1352,9 +1346,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
             {/* Left controls */}
             <div className="flex items-center gap-2 sm:gap-3">
-              <button 
+              <button
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="p-2.5 sm:p-3 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110 group relative"
+                className="p-2.5 sm:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110 group relative"
                 onMouseEnter={() => setActiveTooltip('play')}
                 onMouseLeave={() => setActiveTooltip(null)}
               >
@@ -1366,9 +1360,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                 )}
               </button>
               
-              <button 
+              <button
                 onClick={skipBackward}
-                className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110 group relative hidden sm:block"
+                className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110 group relative hidden sm:block"
                 onMouseEnter={() => setActiveTooltip('back')}
                 onMouseLeave={() => setActiveTooltip(null)}
               >
@@ -1379,10 +1373,10 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                   </span>
                 )}
               </button>
-              
-              <button 
+
+              <button
                 onClick={skipForward}
-                className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 hover:scale-110 group relative hidden sm:block"
+                className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110 group relative hidden sm:block"
                 onMouseEnter={() => setActiveTooltip('forward')}
                 onMouseLeave={() => setActiveTooltip(null)}
               >
@@ -1414,14 +1408,14 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                     step="0.1"
                     value={volume}
                     onChange={(e) => setVolume(parseFloat(e.target.value))}
-                    className="w-full h-1 bg-gray-600 rounded-full appearance-none cursor-pointer accent-purple-500"
+                    className="w-full h-1 bg-gray-600 rounded-full appearance-none cursor-pointer"
                   />
                 </div>
               </div>
               
               <div className="bg-gray-900/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/10 hidden sm:block">
                 <span className="text-sm font-mono text-gray-300">
-                  <span className="text-purple-400 font-semibold">{formatTime(currentTime)}</span>
+                  <span className="text-white font-semibold">{formatTime(currentTime)}</span>
                   <span className="mx-1 text-gray-500">/</span>
                   <span className="text-gray-400">{formatTime(duration)}</span>
                 </span>
@@ -1434,7 +1428,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
               <div className="relative">
                 <button
                   onClick={() => setShowSettings(!showSettings)}
-                  className={`p-2.5 rounded-full transition-all duration-300 group relative ${showSettings ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-purple-600/80 text-white'}`}
+                  className={`p-2.5 rounded-full transition-all duration-300 group relative ${showSettings ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}
                   onMouseEnter={() => setActiveTooltip('settings')}
                   onMouseLeave={() => setActiveTooltip(null)}
                 >
@@ -1456,7 +1450,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                         <select
                           value={playbackRate}
                           onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none focus:border-purple-500"
+                          className="w-full px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none focus:border-white/50"
                         >
                           <option value={0.5}>0.5x</option>
                           <option value={0.75}>0.75x</option>
@@ -1492,8 +1486,8 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                           className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700 transition-all"
                         >
                           <span>Subtitles</span>
-                          <span className={`w-8 h-4 rounded-full relative transition-colors ${subtitlesEnabled ? 'bg-violet-600' : 'bg-gray-600'}`}>
-                            <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${subtitlesEnabled ? 'translate-x-4' : 'translate-x-0'}`}></span>
+                          <span className={`w-8 h-4 rounded-full relative transition-colors ${subtitlesEnabled ? 'bg-white' : 'bg-gray-600'}`}>
+                            <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-black rounded-full transition-transform ${subtitlesEnabled ? 'translate-x-4' : 'translate-x-0'}`}></span>
                           </span>
                         </button>
                       )}
@@ -1505,7 +1499,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
               {/* Fullscreen button */}
               <button
                 onClick={handleFullscreen}
-                className="p-2.5 rounded-full bg-white/10 hover:bg-purple-600/80 transition-all duration-300 group relative"
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 group relative"
                 onMouseEnter={() => setActiveTooltip('fullscreen')}
                 onMouseLeave={() => setActiveTooltip(null)}
               >
@@ -1531,9 +1525,9 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
   return (
     <div className="mt-4 bg-gray-900/40 rounded-xl p-5 border border-white/5">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-        <h3 className="text-base font-semibold flex items-center gap-2 text-white/90">
-          <FiList className="text-violet-400" size={18} /> Select Episode
-        </h3>
+          <h3 className="text-base font-semibold flex items-center gap-2 text-white/90">
+            <FiList className="text-white" size={18} /> Select Episode
+          </h3>
         <div className="flex items-center gap-3 text-xs">
           <div className="text-gray-500">{episodes.length} Episodes</div>
           {fillerCount > 0 && (
@@ -1637,7 +1631,7 @@ const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange,
 
       <div>
         <p className="text-xs text-gray-500 mb-3 flex items-center gap-2 uppercase tracking-wider">
-          <FiMonitor size={14} className="text-violet-400" /> Available Servers
+          <FiMonitor size={14} className="text-white" /> Available Servers
         </p>
         {availableServers.length > 0 ? (
           <div className="flex flex-wrap gap-2">
