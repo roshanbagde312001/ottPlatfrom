@@ -209,41 +209,41 @@ const AnimeDetailsPage = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-900" />
         </div>
 
-        <div className="relative z-10 container mx-auto px-4 pt-8 pb-12">
-          <div className="flex flex-col md:flex-row gap-8">
+        <div className="relative z-10 container mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-8 sm:pb-12">
+          <div className="flex flex-col lg:flex-row gap-6 sm:gap-8">
             {/* Sidebar Poster */}
-            <div className="w-full md:w-72 flex-shrink-0">
+            <div className="w-full lg:w-72 flex-shrink-0">
               <img src={posterSrc} className="w-full rounded-2xl shadow-2xl border border-gray-700" alt={details.title} />
-              <div className="mt-6 flex flex-col gap-3">
-                <Link to={`/watch/anime/${id}?ep=${selectedEpisode}`} className="bg-purple-600 hover:bg-purple-700 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition">
-                  <FiPlay /> WATCH NOW
+              <div className="mt-4 sm:mt-6 flex flex-col gap-2 sm:gap-3">
+                <Link to={`/watch/anime/${id}?ep=${selectedEpisode}`} className="bg-purple-600 hover:bg-purple-700 py-2.5 sm:py-3 rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 font-bold transition text-sm sm:text-base touch-manipulation">
+                  <FiPlay size={16} className="sm:w-5 sm:h-5" /> WATCH NOW
                 </Link>
-                <button className="bg-gray-800 hover:bg-gray-700 py-3 rounded-xl flex items-center justify-center gap-2 transition">
-                  <FiHeart /> WATCHLIST
+                <button className="bg-gray-800 hover:bg-gray-700 py-2.5 sm:py-3 rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 transition text-sm sm:text-base touch-manipulation">
+                  <FiHeart size={16} className="sm:w-5 sm:h-5" /> WATCHLIST
                 </button>
               </div>
             </div>
 
             {/* Content Area */}
             <div className="flex-1">
-              <h1 className="text-4xl font-black mb-2">{details.title}</h1>
-              <p className="text-gray-400 text-xl mb-6 italic">{details.japanese}</p>
-              
-              <div className="flex flex-wrap gap-3 mb-8">
-                <span className="flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-lg border border-yellow-500/20">
-                  <FiStar /> {details.rating}
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-2">{details.title}</h1>
+              <p className="text-gray-400 text-lg sm:text-xl mb-4 sm:mb-6 italic">{details.japanese}</p>
+
+              <div className="flex flex-wrap gap-2 sm:gap-3 mb-6 sm:mb-8">
+                <span className="flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-2 sm:px-3 py-1 rounded-lg border border-yellow-500/20 text-sm">
+                  <FiStar size={12} className="sm:w-[14px] sm:h-[14px]" /> {details.rating}
                 </span>
-                <span className="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-lg border border-purple-500/20">{details.type}</span>
-                <span className="bg-gray-800 px-3 py-1 rounded-lg">{details.status}</span>
+                <span className="bg-purple-500/10 text-purple-400 px-2 sm:px-3 py-1 rounded-lg border border-purple-500/20 text-sm">{details.type}</span>
+                <span className="bg-gray-800 px-2 sm:px-3 py-1 rounded-lg text-sm">{details.status}</span>
               </div>
 
-              <div className="mb-8">
-                <h3 className="flex items-center gap-2 text-gray-400 text-sm font-bold uppercase tracking-widest mb-2">
-                  <FiInfo /> Synopsis
+              <div className="mb-6 sm:mb-8">
+                <h3 className="flex items-center gap-1.5 sm:gap-2 text-gray-400 text-xs sm:text-sm font-bold uppercase tracking-widest mb-2">
+                  <FiInfo size={12} className="sm:w-[14px] sm:h-[14px]" /> Synopsis
                 </h3>
-                <p className="text-gray-300 leading-relaxed">
+                <p className="text-gray-300 leading-relaxed text-sm sm:text-base">
                   {expandedDescription ? details.synopsis : `${details.synopsis?.slice(0, 350)}...`}
-                  <button onClick={() => setExpandedDescription(!expandedDescription)} className="text-purple-400 ml-2 font-bold">
+                  <button onClick={() => setExpandedDescription(!expandedDescription)} className="text-purple-400 ml-2 font-bold text-sm sm:text-base touch-manipulation">
                     {expandedDescription ? 'Show Less' : 'Read More'}
                   </button>
                 </p>

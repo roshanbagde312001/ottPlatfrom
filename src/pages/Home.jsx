@@ -74,7 +74,7 @@ const HomePage = () => {
       </section>
       
       {/* Content Sections */}
-      <div className="relative -mt-32 z-10 pb-12">
+      <div className="relative -mt-32 z-10 pb-12" style={{marginTop:"1rem"}}>
         {/* Trending Now */}
         <Carousel
           title="Trending Now"
@@ -122,26 +122,26 @@ const HomePage = () => {
       </div>
       
       {/* Anime Section */}
-      <section className="py-12 bg-gradient-to-r from-purple-900/50 to-gray-900 border-t border-gray-800">
-        <div className="container mx-auto px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-4">
-              <span className="text-5xl">🎌</span>
+      <section className="py-8 sm:py-10 md:py-12 bg-gradient-to-r from-purple-900/50 to-gray-900 border-t border-gray-800">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <span className="text-3xl sm:text-4xl md:text-5xl">🎌</span>
               <div>
-                <h2 className="text-3xl font-bold text-white">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
                   AnimeFlix
                 </h2>
-                <p className="text-gray-400">
+                <p className="text-gray-400 text-sm sm:text-base">
                   Stream your favorite anime series and movies
                 </p>
               </div>
             </div>
             <Link
               to="/anime"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-md transition-colors text-lg"
+              className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-md transition-colors text-base sm:text-lg touch-manipulation"
             >
               <span>Browse Anime</span>
-              <FiPlay size={24} />
+              <FiPlay size={20} className="sm:w-6 sm:h-6" />
             </Link>
           </div>
         </div>
@@ -198,56 +198,56 @@ const FeaturedSection = ({ movies }) => {
       </div>
       
       {/* Featured Content */}
-      <div className="relative h-full flex items-center px-8 md:px-16 lg:px-24">
-        <div className="max-w-2xl space-y-6">
+      <div className="relative h-full flex items-center px-4 sm:px-6 md:px-8 lg:px-16 xl:px-24">
+        <div className="max-w-2xl space-y-4 sm:space-y-6">
           {/* Badge */}
-          <div className="flex items-center gap-3">
-            <span className="text-netflix-red font-bold tracking-wider uppercase text-sm">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-netflix-red font-bold tracking-wider uppercase text-xs sm:text-sm">
               Featured
             </span>
             <RatingBadge rating={currentMovie.vote_average} size="sm" />
           </div>
-          
+
           {/* Title */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight">
             {currentMovie.title || currentMovie.name}
           </h1>
-          
+
           {/* Overview */}
-          <p className="text-gray-300 text-lg line-clamp-3">
+          <p className="text-gray-300 text-sm sm:text-base md:text-lg line-clamp-3">
             {currentMovie.overview || 'No description available for this title.'}
           </p>
-          
+
           {/* Meta */}
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-400">
             <span>{new Date(currentMovie.release_date || currentMovie.first_air_date).getFullYear()}</span>
             {currentMovie.adult && (
               <span className="border border-gray-500 px-1 text-xs">18+</span>
             )}
             <span className="capitalize">{currentMovie.media_type}</span>
           </div>
-          
+
           {/* Actions */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-wrap gap-2 sm:gap-3 md:gap-4 pt-3 sm:pt-4">
             <Link
               to={`/watch/${currentMovie.media_type || 'movie'}/${currentMovie.id}`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-netflix-red text-white font-semibold rounded-md hover:bg-red-700 transition-colors"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-netflix-red text-white font-semibold rounded-md hover:bg-red-700 transition-colors text-sm sm:text-base touch-manipulation"
             >
-              <FiPlay size={20} />
+              <FiPlay size={16} className="sm:w-5 sm:h-5" />
               Watch Now
             </Link>
             <Link
               to={`/watch-trailer/${currentMovie.media_type || 'movie'}/${currentMovie.id}`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-700/80 text-white font-semibold rounded-md hover:bg-gray-600 transition-colors"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gray-700/80 text-white font-semibold rounded-md hover:bg-gray-600 transition-colors text-sm sm:text-base touch-manipulation"
             >
-              <FiPlay size={20} />
+              <FiPlay size={16} className="sm:w-5 sm:h-5" />
               Watch Trailer
             </Link>
             <Link
               to={`/${currentMovie.media_type || 'movie'}/${currentMovie.id}`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-700/80 text-white font-semibold rounded-md hover:bg-gray-600 transition-colors"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gray-700/80 text-white font-semibold rounded-md hover:bg-gray-600 transition-colors text-sm sm:text-base touch-manipulation"
             >
-              <FiInfo size={20} />
+              <FiInfo size={16} className="sm:w-5 sm:h-5" />
               More Info
             </Link>
           </div>

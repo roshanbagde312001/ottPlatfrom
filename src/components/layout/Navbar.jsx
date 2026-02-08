@@ -40,27 +40,27 @@ export const Navbar = ({ onMenuClick }) => {
         }
       `}
     >
-      <div className="container mx-auto px-4 md:px-8">
-        <div className="flex items-center justify-between h-16 md:h-20">
+      <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16 md:h-20">
           {/* Left Section */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-4 md:gap-6">
             {/* Mobile Menu Button */}
             <button
               onClick={onMenuClick}
-              className="md:hidden text-white hover:text-netflix-red transition-colors"
+              className="md:hidden text-white hover:text-netflix-red transition-colors p-1"
             >
-              <FiMenu size={24} />
+              <FiMenu size={20} />
             </button>
-            
+
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
-              <span className="text-2xl md:text-3xl font-bold text-netflix-red">
+            <Link to="/" className="flex items-center gap-1 sm:gap-2">
+              <span className="text-xl sm:text-2xl md:text-3xl font-bold text-netflix-red">
                 StreamFlix
               </span>
             </Link>
-            
+
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-4 lg:gap-6">
               <NavLink to="/" active={location.pathname === '/'}>
                 Home
               </NavLink>
@@ -72,49 +72,49 @@ export const Navbar = ({ onMenuClick }) => {
               </NavLink>
             </div>
           </div>
-          
+
           {/* Right Section */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
             {/* Search - Desktop */}
-            <div className="hidden md:block w-64 lg:w-80">
-              <SearchBar 
+            <div className="hidden md:block w-48 lg:w-64 xl:w-80">
+              <SearchBar
                 showSuggestions={true}
                 placeholder="Search movies, TV shows..."
               />
             </div>
-            
+
             {/* Notifications */}
-            <button className="hidden md:flex text-white hover:text-netflix-red transition-colors relative">
-              <FiBell size={20} />
+            <button className="hidden md:flex text-white hover:text-netflix-red transition-colors relative p-1">
+              <FiBell size={18} />
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-netflix-red text-white text-xs rounded-full flex items-center justify-center">
                 3
               </span>
             </button>
-            
+
             {/* Watchlist */}
-            <Link 
-              to="/watchlist" 
-              className="text-white hover:text-netflix-red transition-colors relative"
+            <Link
+              to="/watchlist"
+              className="text-white hover:text-netflix-red transition-colors relative p-1"
             >
-              <span className="hidden md:inline">Watchlist</span>
-              <span className="md:hidden">List</span>
+              <span className="hidden md:inline text-sm">Watchlist</span>
+              <span className="md:hidden text-sm">List</span>
               {watchlistCount > 0 && (
-                <span className="absolute -top-2 -right-2 w-5 h-5 bg-netflix-red text-white text-xs rounded-full flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 w-4 h-4 sm:w-5 sm:h-5 bg-netflix-red text-white text-xs rounded-full flex items-center justify-center">
                   {watchlistCount > 9 ? '9+' : watchlistCount}
                 </span>
               )}
             </Link>
-            
+
             {/* Profile */}
-            <button className="hidden md:flex text-white hover:text-netflix-red transition-colors">
-              <FiUser size={20} />
+            <button className="hidden md:flex text-white hover:text-netflix-red transition-colors p-1">
+              <FiUser size={18} />
             </button>
           </div>
         </div>
-        
+
         {/* Mobile Search Bar */}
-        <div className="md:hidden pb-4">
-          <SearchBar 
+        <div className="md:hidden pb-3 sm:pb-4">
+          <SearchBar
             showSuggestions={true}
             placeholder="Search movies, TV shows..."
           />

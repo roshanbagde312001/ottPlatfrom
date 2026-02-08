@@ -300,8 +300,8 @@ const AnimeBrowsePage = () => {
 
       {/* Search & Filter Bar */}
       <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row items-center gap-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex flex-col md:flex-row items-center gap-3 sm:gap-4">
             {/* Search */}
             <div className="flex-1 w-full md:max-w-xl">
               <div className="relative">
@@ -311,21 +311,21 @@ const AnimeBrowsePage = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Search anime..."
-                  className="w-full px-5 py-3 pr-24 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  className="w-full px-4 sm:px-5 py-2.5 sm:py-3 pr-20 sm:pr-24 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all text-sm sm:text-base touch-manipulation"
                 />
                 {searchQuery && (
                   <button
                     onClick={clearSearch}
-                    className="absolute right-12 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-white transition-colors"
+                    className="absolute right-10 sm:right-12 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 text-gray-400 hover:text-white transition-colors touch-manipulation"
                   >
-                    <FiX size={18} />
+                    <FiX size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </button>
                 )}
                 <button
                   onClick={handleSearch}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors"
+                  className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors touch-manipulation"
                 >
-                  <FiSearch size={18} />
+                  <FiSearch size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
               </div>
             </div>
@@ -333,19 +333,19 @@ const AnimeBrowsePage = () => {
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg font-medium transition-colors text-sm sm:text-base touch-manipulation ${
                 showFilters ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              <FiList size={18} />
-              <span className="hidden sm:inline">Filters</span>
+              <FiList size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <span className="hidden xs:inline">Filters</span>
             </button>
 
             {/* Provider Selection */}
             <select
               value={selectedProvider}
               onChange={(e) => setSelectedProvider(e.target.value)}
-              className="px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              className="px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500 text-sm sm:text-base touch-manipulation"
             >
               {PROVIDER_OPTIONS.map(provider => (
                 <option key={provider.id} value={provider.id}>
@@ -357,13 +357,13 @@ const AnimeBrowsePage = () => {
 
           {/* Expandable Filters */}
           {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-800">
-              <div className="flex flex-wrap gap-2">
+            <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-800">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {BROWSE_CATEGORIES.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => handleCategorySelect(cat.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors text-xs sm:text-sm touch-manipulation ${
                       currentCategory === cat.id && !searchMode
                         ? 'bg-purple-600 text-white'
                         : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white'

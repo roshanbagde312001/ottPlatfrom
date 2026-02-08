@@ -29,11 +29,11 @@ export const Sidebar = ({ isOpen, onClose }) => {
       )}
       
       {/* Sidebar */}
-      <aside 
+      <aside
         className={`
           fixed top-0 left-0 h-full w-64 bg-gray-900 z-50
           transform transition-transform duration-300 ease-in-out
-          md:relative md:transform-none md:transition-none md:h-auto md:min-h-full
+          md:static md:transform-none md:transition-none md:h-auto md:min-h-full md:top-0 md:z-auto
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
@@ -49,10 +49,10 @@ export const Sidebar = ({ isOpen, onClose }) => {
         </div>
         
         {/* Navigation */}
-        <nav className="p-4 space-y-6">
+        <nav className="p-3 sm:p-4 space-y-4 sm:space-y-6">
           {/* Main Menu */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 sm:mb-3 px-2 sm:px-3">
               Menu
             </h3>
             <ul className="space-y-1">
@@ -62,25 +62,25 @@ export const Sidebar = ({ isOpen, onClose }) => {
                     to={item.to}
                     onClick={onClose}
                     className={({ isActive }) => `
-                      flex items-center gap-3 px-3 py-2.5 rounded-md
-                      transition-colors duration-200
-                      ${isActive 
-                        ? 'bg-gray-800 text-white' 
+                      flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-md
+                      transition-colors duration-200 text-sm sm:text-base
+                      ${isActive
+                        ? 'bg-gray-800 text-white'
                         : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
                       }
                     `}
                   >
-                    <item.icon size={20} />
+                    <item.icon size={18} className="sm:w-5 sm:h-5" />
                     <span className="font-medium">{item.label}</span>
                   </NavLink>
                 </li>
               ))}
             </ul>
           </div>
-          
+
           {/* Categories */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 sm:mb-3 px-2 sm:px-3">
               Categories
             </h3>
             <ul className="space-y-1">
@@ -90,25 +90,25 @@ export const Sidebar = ({ isOpen, onClose }) => {
                     to={item.to}
                     onClick={onClose}
                     className={({ isActive }) => `
-                      flex items-center gap-3 px-3 py-2.5 rounded-md
-                      transition-colors duration-200
-                      ${isActive 
-                        ? 'bg-gray-800 text-white' 
+                      flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-md
+                      transition-colors duration-200 text-sm sm:text-base
+                      ${isActive
+                        ? 'bg-gray-800 text-white'
                         : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
                       }
                     `}
                   >
-                    <item.icon size={20} />
+                    <item.icon size={18} className="sm:w-5 sm:h-5" />
                     <span className="font-medium">{item.label}</span>
                   </NavLink>
                 </li>
               ))}
             </ul>
           </div>
-          
+
           {/* Genres */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 sm:mb-3 px-2 sm:px-3">
               Popular Genres
             </h3>
             <ul className="space-y-1">
@@ -124,15 +124,15 @@ export const Sidebar = ({ isOpen, onClose }) => {
                     to={genre.path}
                     onClick={onClose}
                     className={({ isActive }) => `
-                      flex items-center gap-3 px-3 py-2.5 rounded-md
-                      transition-colors duration-200
-                      ${isActive 
-                        ? 'bg-gray-800 text-white' 
+                      flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-md
+                      transition-colors duration-200 text-sm sm:text-base
+                      ${isActive
+                        ? 'bg-gray-800 text-white'
                         : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
                       }
                     `}
                   >
-                    <FiTv size={20} />
+                    <FiTv size={18} className="sm:w-5 sm:h-5" />
                     <span className="font-medium">{genre.name}</span>
                   </NavLink>
                 </li>

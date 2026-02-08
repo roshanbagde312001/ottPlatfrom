@@ -16,17 +16,17 @@ export const AnimeCard = ({ anime, showInfoOnHover = true, size = 'md' }) => {
   const inWatchlist = isInWatchlist(anime.id)
   
   const posterWidth = {
-    sm: 'w-40',
-    md: 'w-48',
-    lg: 'w-56',
-    xl: 'w-64',
+    sm: 'w-32 sm:w-40',
+    md: 'w-40 sm:w-48',
+    lg: 'w-48 sm:w-56',
+    xl: 'w-56 sm:w-64',
   }[size]
-  
+
   const posterHeight = {
-    sm: 'h-60',
-    md: 'h-72',
-    lg: 'h-84',
-    xl: 'h-96',
+    sm: 'h-48 sm:h-60',
+    md: 'h-60 sm:h-72',
+    lg: 'h-72 sm:h-84',
+    xl: 'h-84 sm:h-96',
   }[size]
   
   const handleWatchlistClick = (e) => {

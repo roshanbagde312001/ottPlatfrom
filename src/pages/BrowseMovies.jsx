@@ -162,26 +162,26 @@ const BrowseMoviesPage = () => {
     <div className="min-h-screen bg-gray-900">
       {/* Header */}
       <div className="bg-gray-800/50 border-b border-gray-800">
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
           {/* Title */}
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-6">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-4 sm:mb-6">
             {query ? `Search Results for "${query}"` : 'Browse Movies & TV Shows'}
           </h1>
-          
+
           {/* Search */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <SearchBar />
           </div>
-          
+
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 md:gap-4">
             {/* Media Type Filter */}
-            <div className="flex items-center bg-gray-700 rounded-lg p-1">
+            <div className="flex items-center bg-gray-700 rounded-lg p-0.5 sm:p-1">
               <button
                 onClick={() => setSearchType('all')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  searchType === 'all' 
-                    ? 'bg-netflix-red text-white' 
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors touch-manipulation ${
+                  searchType === 'all'
+                    ? 'bg-netflix-red text-white'
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
@@ -189,9 +189,9 @@ const BrowseMoviesPage = () => {
               </button>
               <button
                 onClick={() => setSearchType('movie')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  searchType === 'movie' 
-                    ? 'bg-netflix-red text-white' 
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors touch-manipulation ${
+                  searchType === 'movie'
+                    ? 'bg-netflix-red text-white'
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
@@ -199,68 +199,68 @@ const BrowseMoviesPage = () => {
               </button>
               <button
                 onClick={() => setSearchType('tv')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  searchType === 'tv' 
-                    ? 'bg-netflix-red text-white' 
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors touch-manipulation ${
+                  searchType === 'tv'
+                    ? 'bg-netflix-red text-white'
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
                 TV Shows
               </button>
             </div>
-            
+
             <GenreFilter
               mediaType={searchType}
               selectedGenre={genreId}
               onGenreChange={(id) => updateFilter('genre', id)}
             />
-            
+
             <SortOptions
               selectedOption={sortBy}
               onSortChange={(id) => updateFilter('sort', id)}
             />
-            
+
             <YearFilter
               selectedYear={year}
               onYearChange={(y) => updateFilter('year', y)}
             />
-            
+
             <RatingFilter
               selectedRating={rating}
               onRatingChange={(r) => updateFilter('rating', r)}
             />
-            
-            <div className="flex items-center gap-2 ml-auto">
+
+            <div className="flex items-center gap-1 sm:gap-2 ml-auto">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'grid' 
-                    ? 'bg-netflix-red text-white' 
+                className={`p-1.5 sm:p-2 rounded-md transition-colors touch-manipulation ${
+                  viewMode === 'grid'
+                    ? 'bg-netflix-red text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
-                <FiGrid size={20} />
+                <FiGrid size={16} className="sm:w-5 sm:h-5" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'list' 
-                    ? 'bg-netflix-red text-white' 
+                className={`p-1.5 sm:p-2 rounded-md transition-colors touch-manipulation ${
+                  viewMode === 'list'
+                    ? 'bg-netflix-red text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
-                <FiList size={20} />
+                <FiList size={16} className="sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
-          
+
           {/* Active Filters */}
           {(genreId || year || rating) && (
-            <div className="flex flex-wrap gap-2 mt-4">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-4">
               {genreId && (
                 <button
                   onClick={() => updateFilter('genre', null)}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-netflix-red text-white text-sm rounded-full hover:bg-red-700 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-netflix-red text-white text-xs sm:text-sm rounded-full hover:bg-red-700 transition-colors touch-manipulation"
                 >
                   {(searchType === 'tv' ? GENRES.TV : GENRES.MOVIE).find(g => g.id === genreId)?.name}
                   <span className="ml-1">×</span>
@@ -269,7 +269,7 @@ const BrowseMoviesPage = () => {
               {year && (
                 <button
                   onClick={() => updateFilter('year', null)}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-netflix-red text-white text-sm rounded-full hover:bg-red-700 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-netflix-red text-white text-xs sm:text-sm rounded-full hover:bg-red-700 transition-colors touch-manipulation"
                 >
                   {year}
                   <span className="ml-1">×</span>
@@ -278,7 +278,7 @@ const BrowseMoviesPage = () => {
               {rating && (
                 <button
                   onClick={() => updateFilter('rating', null)}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-netflix-red text-white text-sm rounded-full hover:bg-red-700 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-netflix-red text-white text-xs sm:text-sm rounded-full hover:bg-red-700 transition-colors touch-manipulation"
                 >
                   {rating}+ Rating
                   <span className="ml-1">×</span>

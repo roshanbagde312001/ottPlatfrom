@@ -201,7 +201,7 @@ const AnimePlayerPage = () => {
         
         if (streamResponse && streamResponse.data) {
           setStreamData(streamResponse.data)
-          const originalUrl = streamResponse.data.link?.file || streamResponse.data.link?.directUrl
+          const originalUrl = streamResponse.data.link?.file || streamResponse.data.link?.directUrl || streamResponse.data.streamingLink
           
           if (originalUrl) {
             const proxiedUrl = getProxiedStreamUrl(originalUrl)
@@ -304,30 +304,30 @@ const AnimePlayerPage = () => {
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-xl border-b border-white/5">
-        <div className="container mx-auto flex items-center justify-between px-4 py-3">
-          <button 
-            onClick={() => navigate(-1)} 
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-200 group"
+        <div className="container mx-auto flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-200 group touch-manipulation"
           >
-            <FiArrowLeft size={18} className="text-gray-400 group-hover:text-white transition-colors" /> 
-            <span className="text-sm text-gray-400 group-hover:text-white transition-colors">Back</span>
+            <FiArrowLeft size={16} className="sm:w-[18px] sm:h-[18px] text-gray-400 group-hover:text-white transition-colors" />
+            <span className="text-xs sm:text-sm text-gray-400 group-hover:text-white transition-colors">Back</span>
           </button>
-          
-          <div className="flex items-center gap-3 max-w-md">
+
+          <div className="flex items-center gap-2 sm:gap-3 max-w-xs sm:max-w-md">
             {posterUrl && (
-              <img 
-                src={posterUrl} 
-                alt={anime?.title} 
-                className="w-8 h-11 object-cover rounded-md shadow-lg hidden md:block"
+              <img
+                src={posterUrl}
+                alt={anime?.title}
+                className="w-6 h-9 sm:w-8 sm:h-11 object-cover rounded-md shadow-lg hidden md:block"
               />
             )}
-            <h1 className="font-semibold text-sm md:text-base truncate max-w-xs md:max-w-md text-white/90">
+            <h1 className="font-semibold text-xs sm:text-sm md:text-base truncate max-w-[120px] sm:max-w-xs md:max-w-md text-white/90">
               {anime?.title}
             </h1>
           </div>
-          
-          <button className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-red-400 transition-all duration-200">
-            <FiHeart size={18} />
+
+          <button className="p-1.5 sm:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-red-400 transition-all duration-200 touch-manipulation">
+            <FiHeart size={16} className="sm:w-[18px] sm:h-[18px]" />
           </button>
         </div>
       </div>
@@ -393,12 +393,12 @@ const AnimePlayerPage = () => {
             </div>
 
             {/* Provider & Server Selection */}
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1.5 sm:gap-2 flex-wrap">
               <div className="relative">
                 <select
                   value={selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value)}
-                  className="px-3 py-2.5 bg-gray-900/80 border border-white/10 rounded-xl text-white text-sm appearance-none pr-9 cursor-pointer hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:border-white/50 min-w-[120px]"
+                  className="px-2 sm:px-3 py-2 sm:py-2.5 bg-gray-900/80 border border-white/10 rounded-xl text-white text-xs sm:text-sm appearance-none pr-7 sm:pr-9 cursor-pointer hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:border-white/50 min-w-[100px] sm:min-w-[120px] touch-manipulation"
                 >
                   {PROVIDER_OPTIONS.map(provider => (
                     <option key={provider.id} value={provider.id}>
@@ -406,30 +406,31 @@ const AnimePlayerPage = () => {
                     </option>
                   ))}
                 </select>
-                <FiServer className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={14} />
+                <FiServer className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none w-3 h-3 sm:w-[14px] sm:h-[14px]" />
               </div>
-              
+
               <button
                 onClick={() => setShowEpisodes(!showEpisodes)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium border ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-medium border touch-manipulation ${
                   showEpisodes
                     ? 'bg-white border-white text-black'
                     : 'bg-gray-900/80 border-white/10 hover:bg-gray-800 text-gray-300'
                 }`}
               >
-                <FiGrid size={16} />
-                <span>Episodes</span>
+                <FiGrid size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Episodes</span>
+                <span className="xs:hidden">Eps</span>
               </button>
-              
-              <button 
-                onClick={() => setShowServers(!showServers)} 
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium border ${
-                  showServers 
-                    ? 'bg-violet-600 border-violet-500 text-white' 
+
+              <button
+                onClick={() => setShowServers(!showServers)}
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-medium border touch-manipulation ${
+                  showServers
+                    ? 'bg-violet-600 border-violet-500 text-white'
                     : 'bg-gray-900/80 border-white/10 hover:bg-gray-800 text-gray-300'
                 }`}
               >
-                <FiSettings size={16} /> 
+                <FiSettings size={14} className="sm:w-4 sm:h-4" />
                 <span>Server</span>
               </button>
             </div>
@@ -454,16 +455,16 @@ const AnimePlayerPage = () => {
 
           {/* Episode Selector */}
           {showEpisodes && (
-            <EpisodeSelector 
-              episodes={episodes} 
-              currentEpisode={currentEpisode} 
-              onSelect={handleEpisodeChange} 
+            <EpisodeSelector
+              episodes={episodes}
+              currentEpisode={currentEpisode}
+              onSelect={handleEpisodeChange}
             />
           )}
 
           {/* Server Selector */}
           {showServers && (
-            <ServerSelector 
+            <ServerSelector
               servers={servers}
               selectedType={selectedType}
               selectedServer={selectedServer}
@@ -1311,9 +1312,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           {!isPlaying && !isBuffering && (
             <button
               onClick={() => setIsPlaying(true)}
-              className="p-6 bg-white rounded-full text-black transform transition-all duration-200 hover:scale-110 group"
+              className="p-4 sm:p-6 bg-white rounded-full text-black transform transition-all duration-200 hover:scale-110 group touch-manipulation"
             >
-              <FiPlay size={32} className="ml-1 group-hover:scale-105 transition-transform" />
+              <FiPlay size={24} className="sm:w-8 sm:h-8 ml-0.5 sm:ml-1 group-hover:scale-105 transition-transform" />
             </button>
           )}
         </div>
@@ -1423,34 +1424,34 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
             </div>
             
             {/* Right controls */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
               {/* Settings button */}
               <div className="relative">
                 <button
                   onClick={() => setShowSettings(!showSettings)}
-                  className={`p-2.5 rounded-full transition-all duration-300 group relative ${showSettings ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                  className={`p-2 sm:p-2.5 rounded-full transition-all duration-300 group relative touch-manipulation ${showSettings ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}
                   onMouseEnter={() => setActiveTooltip('settings')}
                   onMouseLeave={() => setActiveTooltip(null)}
                 >
-                  <FiSettings size={20} />
+                  <FiSettings size={18} className="sm:w-5 sm:h-5" />
                   {activeTooltip === 'settings' && (
                     <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
                       Settings
                     </span>
                   )}
                 </button>
-                
+
                 {/* Settings menu */}
                 {showSettings && (
-                  <div className="absolute bottom-full mb-2 right-0 w-48 bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl p-3 z-50">
-                    <div className="space-y-3">
+                  <div className="absolute bottom-full mb-2 right-0 w-44 sm:w-48 bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl p-2 sm:p-3 z-50">
+                    <div className="space-y-2 sm:space-y-3">
                       {/* Playback speed */}
                       <div>
-                        <p className="text-xs text-gray-400 mb-1.5">Speed</p>
+                        <p className="text-xs text-gray-400 mb-1 sm:mb-1.5">Speed</p>
                         <select
                           value={playbackRate}
                           onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none focus:border-white/50"
+                          className="w-full px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none focus:border-white/50 touch-manipulation"
                         >
                           <option value={0.5}>0.5x</option>
                           <option value={0.75}>0.75x</option>
@@ -1460,15 +1461,15 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                           <option value={2}>2x</option>
                         </select>
                       </div>
-                      
+
                       {/* Quality selector */}
                       {availableQualities.length > 1 && (
                         <div>
-                          <p className="text-xs text-gray-400 mb-1.5">Quality</p>
+                          <p className="text-xs text-gray-400 mb-1 sm:mb-1.5">Quality</p>
                           <select
                             value={quality}
                             onChange={(e) => handleQualityChange(e.target.value)}
-                            className="w-full px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none focus:border-purple-500"
+                            className="w-full px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none focus:border-purple-500 touch-manipulation"
                           >
                             {availableQualities.map((q) => (
                               <option key={q.label} value={q.label}>
@@ -1478,16 +1479,16 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                           </select>
                         </div>
                       )}
-                      
+
                       {/* Subtitle toggle */}
                       {tracks.length > 0 && (
                         <button
                           onClick={toggleSubtitles}
-                          className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700 transition-all"
+                          className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700 transition-all touch-manipulation"
                         >
                           <span>Subtitles</span>
-                          <span className={`w-8 h-4 rounded-full relative transition-colors ${subtitlesEnabled ? 'bg-white' : 'bg-gray-600'}`}>
-                            <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-black rounded-full transition-transform ${subtitlesEnabled ? 'translate-x-4' : 'translate-x-0'}`}></span>
+                          <span className={`w-7 sm:w-8 h-3.5 sm:h-4 rounded-full relative transition-colors ${subtitlesEnabled ? 'bg-white' : 'bg-gray-600'}`}>
+                            <span className={`absolute top-0.5 left-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 bg-black rounded-full transition-transform ${subtitlesEnabled ? 'translate-x-3 sm:translate-x-4' : 'translate-x-0'}`}></span>
                           </span>
                         </button>
                       )}
@@ -1495,15 +1496,15 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                   </div>
                 )}
               </div>
-              
+
               {/* Fullscreen button */}
               <button
                 onClick={handleFullscreen}
-                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 group relative"
+                className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 group relative touch-manipulation"
                 onMouseEnter={() => setActiveTooltip('fullscreen')}
                 onMouseLeave={() => setActiveTooltip(null)}
               >
-                {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
+                {isFullscreen ? <FiMinimize size={18} className="sm:w-5 sm:h-5" /> : <FiMaximize size={18} className="sm:w-5 sm:h-5" />}
                 {activeTooltip === 'fullscreen' && (
                   <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
                     Fullscreen (F)
@@ -1606,23 +1607,23 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
 // Server Selector Component
 const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange, onTypeChange }) => {
   const availableServers = servers[selectedType] || []
-  
+
   return (
-    <div className="mt-4 bg-gray-900/40 rounded-xl p-5 border border-white/5">
-      <div className="flex gap-2 mb-4">
+    <div className="mt-3 sm:mt-4 bg-gray-900/40 rounded-xl p-3 sm:p-4 md:p-5 border border-white/5">
+      <div className="flex gap-1.5 sm:gap-2 mb-3 sm:mb-4 flex-wrap">
         {['sub', 'dub', 'raw'].map(type => (
           <button
             key={type}
             onClick={() => onTypeChange(type)}
-            className={`px-4 py-2 rounded-lg capitalize transition-all duration-200 text-sm font-medium flex items-center gap-2 ${
-              selectedType === type 
-                ? 'bg-violet-600 text-white' 
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg capitalize transition-all duration-200 text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
+              selectedType === type
+                ? 'bg-violet-600 text-white'
                 : 'bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 border border-white/5'
             }`}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${selectedType === type ? 'bg-white' : 'bg-gray-500'}`}></span>
-            {type} 
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedType === type ? 'bg-white/20' : 'bg-gray-700'}`}>
+            {type}
+            <span className={`text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full ${selectedType === type ? 'bg-white/20' : 'bg-gray-700'}`}>
               {servers[type]?.length || 0}
             </span>
           </button>
@@ -1630,18 +1631,18 @@ const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange,
       </div>
 
       <div>
-        <p className="text-xs text-gray-500 mb-3 flex items-center gap-2 uppercase tracking-wider">
-          <FiMonitor size={14} className="text-white" /> Available Servers
+        <p className="text-xs text-gray-500 mb-2 sm:mb-3 flex items-center gap-1.5 sm:gap-2 uppercase tracking-wider">
+          <FiMonitor size={12} className="sm:w-[14px] sm:h-[14px] text-white" /> Available Servers
         </p>
         {availableServers.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {availableServers.map((server, index) => (
               <button
                 key={server.name || index}
                 onClick={() => onServerChange(server)}
-                className={`px-4 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${
-                  selectedServer?.name === server.name 
-                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20' 
+                className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg transition-all duration-200 font-medium flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
+                  selectedServer?.name === server.name
+                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
                     : 'bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 border border-white/5 hover:border-white/10'
                 }`}
               >
@@ -1651,8 +1652,8 @@ const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange,
             ))}
           </div>
         ) : (
-          <div className="bg-gray-800/30 rounded-lg p-4 text-center border border-white/5">
-            <p className="text-gray-500 text-sm">No servers available for {selectedType}</p>
+          <div className="bg-gray-800/30 rounded-lg p-3 sm:p-4 text-center border border-white/5">
+            <p className="text-gray-500 text-xs sm:text-sm">No servers available for {selectedType}</p>
             <p className="text-gray-600 text-xs mt-1">Try switching to a different type</p>
           </div>
         )}
