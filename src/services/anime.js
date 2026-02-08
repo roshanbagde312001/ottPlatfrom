@@ -1,6 +1,6 @@
 // API Configuration - Prioritize local development server, fallback to external API
-const API_LOCAL = 'http://192.168.7.15:3030/api/v1';
-const API_EXTERNAL = 'http://192.168.7.15:3030/api/v1';
+const API_LOCAL = 'https://hianimeapi-6uju.onrender.com/api/v1';
+const API_EXTERNAL = 'https://hianimeapi-6uju.onrender.com/api/v1';
 
 // Auto-detect API base - try local first, fallback to external
 const API_ROOT = API_LOCAL;
@@ -35,7 +35,7 @@ const PROVIDERS = {
 };
 
 // Proxy for streaming - using the API's built-in proxy endpoint
-const PROXY_BASE = 'http://192.168.7.15:3030/api/v1';
+const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
 
 // Helper function to build URLs from provider templates
 export function buildUrl(providerKey, templateKey, params = {}) {
@@ -58,9 +58,9 @@ export async function safeFetch(url, options = {}) {
     const response = await fetch(url, {
       ...options,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
+        // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        // 'Accept': 'application/json',
+        // 'Accept-Language': 'en-US,en;q=0.9',
         // 'Content-Type': 'application/json',
         ...options.headers
       }
@@ -85,16 +85,16 @@ const fetchAPI = async (endpoint, options = {}) => {
   // let url = `${API_ROOT}${endpoint}`;
   let url = endpoint;
   if(url.includes("stream")){
-    url = `${"https://api.animo.qzz.io/api/v1"}${endpoint}`
+    url = `${"https://hianimeapi-6uju.onrender.com/api/v1"}${endpoint}`
   }else{
    url = `${API_ROOT}${endpoint}`;
 }
   const response = await fetch(url, {
     ...options,
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-      'Accept': 'application/json',
-      'Accept-Language': 'en-US,en;q=0.9',
+      // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+      // 'Accept': 'application/json',
+      // 'Accept-Language': 'en-US,en;q=0.9',
       // 'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -225,15 +225,76 @@ export const getStreamLink = async (streamId, server = 'hd-1', type = 'sub', pro
 
 
 
+// External Render proxy for video and subtitle streaming
+const RENDER_PROXY = 'https://rust-proxy-fy7g.onrender.com';
+
 // Get proxied stream URL for video playback (bypasses CORS)
 export const getProxiedStreamUrl = (originalUrl, referer = 'https://megacloud.tv') => {
   if (!originalUrl) return null;
   
-  // Use the API's proxy endpoint with proper encoding
-  const proxyUrl = `${PROXY_BASE}/proxy?url=${encodeURIComponent(originalUrl)}&referer=${encodeURIComponent(referer)}`;
-  console.log('[anime.js] Proxied Stream URL:', proxyUrl);
+  // Use the Render proxy endpoint with proper encoding
+  const proxyUrl = `${RENDER_PROXY}/?url=${encodeURIComponent(originalUrl)}&referer=${encodeURIComponent(referer)}`;
+  console.log('[anime.js] Proxied Stream URL (Render):', proxyUrl);
   
   return proxyUrl;
+};
+
+// Get proxied subtitle URL for subtitle files (bypasses CORS)
+export const getProxiedSubtitleUrl = (originalUrl, referer = 'https://hianime.to') => {
+  if (!originalUrl) return null;
+  
+  // If URL is already a blob URL or data URI, return as-is
+  if (originalUrl.startsWith('blob:') || originalUrl.startsWith('data:')) {
+    return originalUrl;
+  }
+  
+  // Try direct URL first for same-origin or CORS-enabled servers
+  if (originalUrl.includes('localhost') || originalUrl.includes('127.0.0.1')) {
+    return originalUrl;
+  }
+  
+  // Use the Render proxy endpoint with proper encoding
+  // Use hianime.to as referer since that's where subtitles usually come from
+  const proxyUrl = `${RENDER_PROXY}/proxy?url=${encodeURIComponent(originalUrl)}&referer=${encodeURIComponent(referer)}`;
+  console.log('[anime.js] Proxied Subtitle URL (Render):', proxyUrl);
+  
+  return proxyUrl;
+};
+
+// Fetch subtitle content directly with CORS handling
+export const fetchSubtitleContent = async (url) => {
+  try {
+    // Try direct fetch first
+    const directResponse = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': '*/*',
+      },
+    });
+    
+    if (directResponse.ok) {
+      const content = await directResponse.text();
+      return { success: true, content, source: 'direct' };
+    }
+  } catch (err) {
+    console.log('[anime.js] Direct subtitle fetch failed, trying proxy:', err.message);
+  }
+  
+  // Fallback to proxied URL
+  try {
+    const proxiedUrl = getProxiedSubtitleUrl(url);
+    const proxyResponse = await fetch(proxiedUrl);
+    
+    if (proxyResponse.ok) {
+      const content = await proxyResponse.text();
+      return { success: true, content, source: 'proxy' };
+    } else {
+      throw new Error(`Proxy failed: ${proxyResponse.status}`);
+    }
+  } catch (err) {
+    console.error('[anime.js] Both direct and proxy subtitle fetch failed:', err);
+    return { success: false, error: err.message };
+  }
 };
 
 // Get direct stream URL (fallback when proxy fails)
@@ -510,6 +571,7 @@ export default {
   getServers,
   getStreamLink,
   getProxiedStreamUrl,
+  getProxiedSubtitleUrl,
   
   // Browse
 

@@ -32,6 +32,7 @@ import {
   getEpisodes,
   getPosterUrl,
   getProxiedStreamUrl,
+  getProxiedSubtitleUrl,
   getServers,
   getStreamLink
 } from '../services/anime'
@@ -223,26 +224,26 @@ const AnimePlayerPage = () => {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center">
       <div className="relative">
-        <div className="absolute inset-0 bg-purple-500 blur-3xl opacity-20 rounded-full"></div>
-        <FiLoader className="animate-spin text-purple-500 text-5xl relative z-10" />
+        <div className="absolute inset-0 bg-violet-500/20 blur-2xl rounded-full animate-pulse"></div>
+        <FiLoader className="animate-spin text-violet-500 text-5xl relative z-10" />
       </div>
-      <p className="mt-6 text-gray-400 text-lg animate-pulse">Loading anime...</p>
+      <p className="mt-8 text-gray-500 text-sm tracking-wide uppercase">Loading anime...</p>
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-      <div className="bg-gray-800/80 backdrop-blur-md border border-red-500/30 rounded-2xl p-8 max-w-md text-center shadow-2xl shadow-red-500/10">
-        <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <FiFilm className="text-red-500 text-3xl" />
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+      <div className="bg-gray-900/80 backdrop-blur-xl border border-red-500/20 rounded-2xl p-8 max-w-md text-center shadow-2xl">
+        <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <FiFilm className="text-red-400 text-2xl" />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">Failed to Load</h2>
-        <p className="text-red-400 mb-6">{error}</p>
+        <h2 className="text-lg font-semibold text-white mb-2">Failed to Load</h2>
+        <p className="text-red-400/80 text-sm mb-8">{error}</p>
         <button 
           onClick={() => window.location.reload()} 
-          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-300 hover:scale-105"
+          className="px-6 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl transition-all duration-200 text-sm font-medium"
         >
           Try Again
         </button>
@@ -253,16 +254,16 @@ const AnimePlayerPage = () => {
   const posterUrl = getPosterUrl(anime?.poster)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+    <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10 p-4 shadow-lg">
-        <div className="container mx-auto flex items-center justify-between">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-xl border-b border-white/5">
+        <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <button 
             onClick={() => navigate(-1)} 
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-200 group"
           >
-            <FiArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> 
-            <span className="font-medium">Back</span>
+            <FiArrowLeft size={18} className="text-gray-400 group-hover:text-white transition-colors" /> 
+            <span className="text-sm text-gray-400 group-hover:text-white transition-colors">Back</span>
           </button>
           
           <div className="flex items-center gap-3 max-w-md">
@@ -270,30 +271,30 @@ const AnimePlayerPage = () => {
               <img 
                 src={posterUrl} 
                 alt={anime?.title} 
-                className="w-10 h-14 object-cover rounded-lg shadow-md hidden md:block"
+                className="w-8 h-11 object-cover rounded-md shadow-lg hidden md:block"
               />
             )}
-            <h1 className="font-bold text-lg md:text-xl truncate max-w-xs md:max-w-md text-white/90">
+            <h1 className="font-semibold text-sm md:text-base truncate max-w-xs md:max-w-md text-white/90">
               {anime?.title}
             </h1>
           </div>
           
-          <button className="p-2 rounded-full bg-white/10 hover:bg-red-500/20 hover:text-red-400 transition-all duration-300">
-            <FiHeart size={20} />
+          <button className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-red-400 transition-all duration-200">
+            <FiHeart size={18} />
           </button>
         </div>
       </div>
 
-      <div className="pt-20">
+      <div className="pt-14">
         {/* Video Player */}
-        <div className="relative bg-black aspect-video w-full shadow-2xl">
+        <div className="relative bg-black aspect-video w-full">
           {loadingStream ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950">
               <div className="relative">
-                <div className="absolute inset-0 bg-purple-500 blur-2xl opacity-30 rounded-full animate-pulse"></div>
-                <FiLoader className="animate-spin text-purple-500 text-5xl relative z-10" />
+                <div className="absolute inset-0 bg-violet-500/20 blur-2xl rounded-full animate-pulse"></div>
+                <FiLoader className="animate-spin text-violet-500 text-4xl relative z-10" />
               </div>
-              <p className="mt-4 text-gray-400 animate-pulse">Loading stream...</p>
+              <p className="mt-6 text-gray-500 text-sm tracking-wide uppercase">Loading stream...</p>
             </div>
           ) : videoUrl ? (
             <VideoPlayer 
@@ -305,12 +306,12 @@ const AnimePlayerPage = () => {
               onNextEpisode={handleNextEpisode}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-              <div className="text-center p-8 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-white/10">
-                <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiFilm size={40} className="text-purple-400" />
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-950">
+              <div className="text-center p-8">
+                <div className="w-16 h-16 bg-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <FiFilm size={32} className="text-violet-400" />
                 </div>
-                <p className="text-gray-300 text-lg font-medium">
+                <p className="text-gray-300 text-base font-medium">
                   {selectedServer ? 'Preparing your stream...' : 'Select a server to start watching'}
                 </p>
                 <p className="text-gray-500 text-sm mt-2">Choose from available servers below</p>
@@ -320,37 +321,37 @@ const AnimePlayerPage = () => {
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-6 border-t border-white/10 shadow-2xl">
-          <div className="container mx-auto flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-gray-900/50 border-t border-white/5">
+          <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
             {/* Episode Navigation */}
-            <div className="flex items-center gap-3 bg-gray-800/80 backdrop-blur-sm rounded-xl p-2 border border-white/5">
+            <div className="flex items-center gap-2 bg-gray-900/80 rounded-xl p-1.5 border border-white/5">
               <button 
                 disabled={currentEpisode <= 1}
                 onClick={() => handleEpisodeChange(currentEpisode - 1)}
-                className="p-3 bg-gray-700 hover:bg-purple-600 disabled:opacity-30 disabled:hover:bg-gray-700 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg"
+                className="p-2.5 bg-gray-800 hover:bg-violet-600 disabled:opacity-30 disabled:hover:bg-gray-800 rounded-lg transition-all duration-200"
               >
-                <FiChevronLeft size={20} />
+                <FiChevronLeft size={18} />
               </button>
-              <div className="px-4 py-2 bg-gray-900/50 rounded-lg border border-white/10">
-                <span className="text-gray-400 text-xs uppercase tracking-wider">Episode</span>
-                <p className="font-bold text-lg text-white">{currentEpisode} <span className="text-gray-500 text-sm font-normal">/ {episodes.length}</span></p>
+              <div className="px-4 py-2 min-w-[100px] text-center">
+                <span className="text-gray-500 text-[10px] uppercase tracking-wider block">Episode</span>
+                <p className="font-semibold text-white text-sm">{currentEpisode} <span className="text-gray-500 font-normal">/ {episodes.length}</span></p>
               </div>
               <button 
                 disabled={currentEpisode >= episodes.length}
                 onClick={() => handleEpisodeChange(currentEpisode + 1)}
-                className="p-3 bg-gray-700 hover:bg-purple-600 disabled:opacity-30 disabled:hover:bg-gray-700 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg"
+                className="p-2.5 bg-gray-800 hover:bg-violet-600 disabled:opacity-30 disabled:hover:bg-gray-800 rounded-lg transition-all duration-200"
               >
-                <FiChevronRight size={20} />
+                <FiChevronRight size={18} />
               </button>
             </div>
 
             {/* Provider & Server Selection */}
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               <div className="relative">
                 <select
                   value={selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value)}
-                  className="px-4 py-3 bg-gray-800/80 backdrop-blur-sm border border-white/10 rounded-xl text-white text-sm appearance-none pr-10 cursor-pointer hover:bg-gray-700/80 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                  className="px-3 py-2.5 bg-gray-900/80 border border-white/10 rounded-xl text-white text-sm appearance-none pr-9 cursor-pointer hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:border-violet-500/50 min-w-[120px]"
                 >
                   {PROVIDER_OPTIONS.map(provider => (
                     <option key={provider.id} value={provider.id}>
@@ -358,43 +359,43 @@ const AnimePlayerPage = () => {
                     </option>
                   ))}
                 </select>
-                <FiServer className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                <FiServer className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={14} />
               </div>
               
               <button 
                 onClick={() => setShowEpisodes(!showEpisodes)} 
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg border ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium border ${
                   showEpisodes 
-                    ? 'bg-purple-600 border-purple-500 text-white' 
-                    : 'bg-gray-800/80 backdrop-blur-sm border-white/10 hover:bg-gray-700/80'
+                    ? 'bg-violet-600 border-violet-500 text-white' 
+                    : 'bg-gray-900/80 border-white/10 hover:bg-gray-800 text-gray-300'
                 }`}
               >
-                <FiGrid size={18} /> 
-                <span className="font-medium">Episodes</span>
+                <FiGrid size={16} /> 
+                <span>Episodes</span>
               </button>
               
               <button 
                 onClick={() => setShowServers(!showServers)} 
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg border ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium border ${
                   showServers 
-                    ? 'bg-purple-600 border-purple-500 text-white' 
-                    : 'bg-gray-800/80 backdrop-blur-sm border-white/10 hover:bg-gray-700/80'
+                    ? 'bg-violet-600 border-violet-500 text-white' 
+                    : 'bg-gray-900/80 border-white/10 hover:bg-gray-800 text-gray-300'
                 }`}
               >
-                <FiSettings size={18} /> 
-                <span className="font-medium">Server</span>
+                <FiSettings size={16} /> 
+                <span>Server</span>
               </button>
             </div>
             
             {/* Type Selection */}
-            <div className="flex bg-gray-800/80 backdrop-blur-sm rounded-xl p-1.5 border border-white/10">
+            <div className="flex bg-gray-900/80 rounded-xl p-1 border border-white/5">
               {['sub', 'dub', 'raw'].map(type => (
                 <button
                   key={type}
                   onClick={() => handleTypeChange(type)}
-                  className={`px-5 py-2.5 rounded-lg capitalize font-medium transition-all duration-300 ${
+                  className={`px-4 py-2 rounded-lg capitalize text-sm font-medium transition-all duration-200 ${
                     selectedType === type 
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25' 
+                      ? 'bg-violet-600 text-white' 
                       : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
@@ -465,6 +466,115 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
   const [autoPlayCountdown, setAutoPlayCountdown] = useState(null)
   const [isBuffering, setIsBuffering] = useState(false)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)
+  const [convertedTracks, setConvertedTracks] = useState([])
+
+  // Convert SRT to WebVTT format and remove image sprite references
+  const convertSrtToVtt = (srtContent) => {
+    // Split content by double newlines to get each subtitle block
+    const blocks = srtContent.split(/\n\s*\n/)
+    const cues = []
+    
+    blocks.forEach(block => {
+      const lines = block.split('\n').filter(line => line.trim() !== '')
+      if (lines.length < 2) return
+      
+      // First line should be the index number (1, 2, 3, etc.)
+      const indexLine = lines[0].trim()
+      if (!/^\d+$/.test(indexLine)) return
+      
+      // Second line should be the timestamp
+      const timeLine = lines[1].trim()
+      if (!timeLine.includes('-->')) return
+      
+      // Convert SRT timestamp to VTT (comma to dot)
+      const vttTime = timeLine.replace(/,/g, '.')
+      
+      // Remaining lines are the dialogue text
+      const dialogueLines = lines.slice(2)
+      const cleanedDialogue = dialogueLines.map(line => {
+        // Remove sprite artifacts but keep the actual dialogue
+        return line
+          .replace(/sprite-\d+\.[a-z]+(#[a-z0-9\-_]*)?/gi, '') // Remove sprite files
+          .replace(/\bsprite-\d+\b/gi, '') // Remove standalone sprite-N
+          .replace(/#[a-z0-9\-_]+/gi, '') // Remove hash fragments
+          .replace(/={1,}/g, '') // Remove = signs
+          .replace(/{\s*\\[^}]*}/g, '') // Remove ASS style tags
+          .trim()
+      }).filter(line => line.length > 0)
+      
+      // Only add if we have dialogue text
+      if (cleanedDialogue.length > 0) {
+        cues.push({
+          time: vttTime,
+          text: cleanedDialogue.join('\n')
+        })
+      }
+    })
+    
+    // Build WebVTT output
+    let vtt = 'WEBVTT\n\n'
+    
+    cues.forEach(cue => {
+      vtt += cue.time + '\n'
+      vtt += cue.text + '\n\n'
+    })
+    
+    return vtt
+  }
+
+  // Fetch and convert subtitle with fallback strategies
+  const fetchAndConvertSubtitle = async (originalUrl) => {
+    // Strategy 1: Try original URL directly (some servers have CORS enabled)
+    try {
+      console.log('[VideoPlayer] Trying direct subtitle fetch:', originalUrl)
+      const response = await fetch(originalUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*, text/plain, application/octet-stream',
+        },
+      })
+      if (response.ok) {
+        const srtContent = await response.text()
+        if (srtContent.length > 0 && !srtContent.includes('<!DOCTYPE')) {
+          console.log('[VideoPlayer] Direct fetch successful, content length:', srtContent.length)
+          const vttContent = convertSrtToVtt(srtContent)
+          const blob = new Blob([vttContent], { type: 'text/vtt' })
+          return URL.createObjectURL(blob)
+        }
+      }
+    } catch (err) {
+      console.log('[VideoPlayer] Direct subtitle fetch failed:', err.message)
+    }
+
+    // Strategy 2: Try proxied URL
+    try {
+      const proxiedUrl = getProxiedSubtitleUrl(originalUrl)
+      console.log('[VideoPlayer] Trying proxied subtitle fetch:', proxiedUrl)
+      const response = await fetch(proxiedUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*',
+        },
+      })
+      if (response.ok) {
+        const srtContent = await response.text()
+        if (srtContent.length > 0 && !srtContent.includes('<!DOCTYPE')) {
+          console.log('[VideoPlayer] Proxied fetch successful, content length:', srtContent.length)
+          const vttContent = convertSrtToVtt(srtContent)
+          const blob = new Blob([vttContent], { type: 'text/vtt' })
+          return URL.createObjectURL(blob)
+        }
+      } else {
+        console.log('[VideoPlayer] Proxied fetch returned status:', response.status)
+      }
+    } catch (err) {
+      console.log('[VideoPlayer] Proxied subtitle fetch failed:', err.message)
+    }
+
+    // Strategy 3: Return null if all failed
+    console.log('[VideoPlayer] All subtitle fetch strategies failed for:', originalUrl)
+    return null
+  }
 
   // Get effective URL
   const getEffectiveUrl = () => {
@@ -668,6 +778,76 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     localStorage.setItem('player-playback-rate', playbackRate.toString())
   }, [playbackRate])
 
+  // Initialize and convert subtitles when tracks change
+  useEffect(() => {
+    const loadSubtitles = async () => {
+      if (tracks.length === 0) {
+        console.log('[VideoPlayer] No tracks available')
+        setConvertedTracks([])
+        return
+      }
+      
+      console.log('[VideoPlayer] Converting tracks:', tracks.length, tracks)
+      
+      const converted = await Promise.all(
+        tracks.map(async (track, index) => {
+          // Use original URL, let fetchAndConvertSubtitle handle proxy fallback
+          const vttUrl = await fetchAndConvertSubtitle(track.file)
+          return {
+            ...track,
+            vttUrl,
+            index
+          }
+        })
+      )
+      
+      const successful = converted.filter(t => t.vttUrl !== null)
+      console.log('[VideoPlayer] Successfully converted tracks:', successful.length, successful)
+      setConvertedTracks(successful)
+    }
+    
+    loadSubtitles()
+    
+    return () => {
+      convertedTracks.forEach(track => {
+        if (track.vttUrl && track.vttUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(track.vttUrl)
+        }
+      })
+    }
+  }, [tracks])
+
+  // Initialize subtitles when video loads
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || convertedTracks.length === 0) return
+    
+    console.log('[VideoPlayer] Setting up text tracks, converted:', convertedTracks.length)
+    
+    const handleLoadedMetadata = () => {
+      console.log('[VideoPlayer] Metadata loaded, textTracks:', video.textTracks.length)
+      const textTracks = video.textTracks
+      for (let i = 0; i < textTracks.length; i++) {
+        const track = textTracks[i]
+        console.log(`[VideoPlayer] Track ${i}: kind=${track.kind}, mode=${track.mode}, label=${track.label}`)
+        if (track.kind === 'subtitles' || track.kind === 'captions') {
+          track.mode = subtitlesEnabled ? 'showing' : 'hidden'
+          console.log(`[VideoPlayer] Set track ${i} mode to:`, track.mode)
+        }
+      }
+    }
+    
+    video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    
+    if (video.readyState >= 1) {
+      handleLoadedMetadata()
+    }
+    
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+    }
+  }, [convertedTracks, subtitlesEnabled])
+
   // Handle quality change
   const handleQualityChange = useCallback((newQuality) => {
     setQuality(newQuality)
@@ -691,10 +871,14 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     if (!video) return
     
     const textTracks = video.textTracks
+    const newEnabledState = !subtitlesEnabled
+    
     for (let i = 0; i < textTracks.length; i++) {
-      textTracks[i].mode = subtitlesEnabled ? 'hidden' : 'showing'
+      if (textTracks[i].kind === 'subtitles' || textTracks[i].kind === 'captions') {
+        textTracks[i].mode = newEnabledState ? 'showing' : 'hidden'
+      }
     }
-    setSubtitlesEnabled(!subtitlesEnabled)
+    setSubtitlesEnabled(newEnabledState)
   }, [subtitlesEnabled])
 
   // Keyboard shortcuts
@@ -975,14 +1159,14 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           playsInline
           crossOrigin="anonymous"
         >
-          {tracks.map((track, index) => (
+          {convertedTracks.map((track) => (
             <track
-              key={index}
-              kind={track.kind || 'subtitles'}
-              src={track.file}
+              key={`track-${track.index}`}
+              kind="subtitles"
+              src={track.vttUrl}
               srclang={track.lang || 'en'}
-              label={track.label || 'Subtitles'}
-              default={track.default || index === 0}
+              label={track.label || 'English'}
+              default={true}
             />
           ))}
         </video>
@@ -990,10 +1174,10 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
 
       {/* Buffering Indicator */}
       {isBuffering && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 pointer-events-none">
           <div className="relative">
-            <div className="absolute inset-0 bg-purple-500 blur-2xl opacity-30 rounded-full animate-pulse"></div>
-            <FiLoader className="animate-spin text-purple-500 text-5xl relative z-10" />
+            <div className="absolute inset-0 bg-violet-500/30 blur-xl rounded-full animate-pulse"></div>
+            <FiLoader className="animate-spin text-violet-400 text-4xl relative z-10" />
           </div>
         </div>
       )}
@@ -1001,16 +1185,16 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
       {/* Skip Feedback Overlay */}
       {showSkipOverlay && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-          <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-6 transform transition-all duration-300 scale-100 opacity-100">
+          <div className="bg-black/80 backdrop-blur-md rounded-2xl px-8 py-6 transform transition-all duration-300">
             {showSkipOverlay === 'forward' ? (
               <div className="flex items-center gap-3 text-white">
-                <FiFastForward size={40} className="text-purple-400" />
-                <span className="text-2xl font-bold">+10s</span>
+                <FiFastForward size={32} className="text-violet-400" />
+                <span className="text-xl font-semibold">+10s</span>
               </div>
             ) : (
               <div className="flex items-center gap-3 text-white">
-                <FiRewind size={40} className="text-purple-400" />
-                <span className="text-2xl font-bold">-10s</span>
+                <FiRewind size={32} className="text-violet-400" />
+                <span className="text-xl font-semibold">-10s</span>
               </div>
             )}
           </div>
@@ -1019,22 +1203,22 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
 
       {/* Auto-play Countdown Overlay */}
       {autoPlayCountdown !== null && onNextEpisode && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-30">
+        <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-30">
           <div className="text-center">
-            <p className="text-white text-xl mb-4">Next episode in</p>
-            <div className="text-6xl font-bold text-purple-400 mb-6">{autoPlayCountdown}</div>
+            <p className="text-gray-400 text-sm uppercase tracking-wider mb-4">Next episode in</p>
+            <div className="text-5xl font-bold text-violet-400 mb-8">{autoPlayCountdown}</div>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={cancelAutoPlay}
-                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-all"
+                className="px-5 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 text-sm font-medium transition-all duration-200"
               >
                 Cancel
               </button>
               <button
                 onClick={onNextEpisode}
-                className="px-6 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-white transition-all flex items-center gap-2"
+                className="px-5 py-2 bg-violet-600 hover:bg-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-200 flex items-center gap-2"
               >
-                <FiSkipForward /> Play Now
+                <FiSkipForward size={16} /> Play Now
               </button>
             </div>
           </div>
@@ -1043,21 +1227,21 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
 
       {/* Enhanced Controls Overlay */}
       <div 
-        className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 flex flex-col justify-between transition-all duration-300 ${
+        className={`absolute inset-0 flex flex-col justify-between transition-opacity duration-300 ${
           showControls || !isPlaying || showSettings ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
         {/* Top bar with title and theater mode */}
-        <div className="p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+        <div className="p-4 sm:p-6 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent">
           <div className="flex items-center gap-3">
             {poster && (
-              <img src={poster} alt="" className="w-12 h-16 object-cover rounded-lg shadow-lg hidden sm:block" />
+              <img src={poster} alt="" className="w-10 h-14 object-cover rounded-lg shadow-lg hidden sm:block opacity-80" />
             )}
             <div>
-              <p className="text-white/90 font-semibold text-sm sm:text-base line-clamp-1">
+              <p className="text-white/90 font-medium text-sm sm:text-base line-clamp-1">
                 Episode {episodeNumber}
               </p>
-              <p className="text-white/50 text-xs">
+              <p className="text-white/40 text-xs mt-0.5">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </p>
             </div>
@@ -1066,13 +1250,13 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTheaterMode(!theaterMode)}
-              className={`p-2 rounded-lg transition-all duration-300 group relative ${theaterMode ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+              className={`p-2 rounded-lg transition-all duration-200 group relative ${theaterMode ? 'bg-violet-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white'}`}
               onMouseEnter={() => setActiveTooltip('theater')}
               onMouseLeave={() => setActiveTooltip(null)}
             >
-              <FiZoomIn size={20} />
+              <FiZoomIn size={18} />
               {activeTooltip === 'theater' && (
-                <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap">
+                <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900/90 text-white text-xs rounded-md whitespace-nowrap border border-white/10">
                   Theater Mode (T)
                 </span>
               )}
@@ -1085,9 +1269,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           {!isPlaying && !isBuffering && (
             <button 
               onClick={() => setIsPlaying(true)} 
-              className="p-8 bg-purple-600/90 backdrop-blur-sm rounded-full text-white transform transition-all duration-300 hover:scale-125 hover:bg-purple-500 shadow-2xl shadow-purple-500/30 group"
+              className="p-6 bg-violet-600/90 backdrop-blur-sm rounded-full text-white transform transition-all duration-200 hover:scale-110 hover:bg-violet-500 shadow-xl shadow-violet-500/20 group"
             >
-              <FiPlay size={40} className="ml-1 group-hover:scale-110 transition-transform" />
+              <FiPlay size={32} className="ml-1 group-hover:scale-105 transition-transform" />
             </button>
           )}
         </div>
@@ -1260,7 +1444,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                           className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700 transition-all"
                         >
                           <span>Subtitles</span>
-                          <span className={`w-2 h-2 rounded-full ${subtitlesEnabled ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                          <span className={`w-8 h-4 rounded-full relative transition-colors ${subtitlesEnabled ? 'bg-violet-600' : 'bg-gray-600'}`}>
+                            <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${subtitlesEnabled ? 'translate-x-4' : 'translate-x-0'}`}></span>
+                          </span>
                         </button>
                       )}
                     </div>
@@ -1295,16 +1481,16 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
   const fillerCount = episodes.filter(ep => ep.isFiller).length;
 
   return (
-    <div className="mt-6 bg-gray-800/40 rounded-2xl p-6 border border-gray-700/50 shadow-2xl">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h3 className="text-xl font-bold flex items-center gap-2">
-          <FiList className="text-purple-400" /> Select Episode
+    <div className="mt-4 bg-gray-900/40 rounded-xl p-5 border border-white/5">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+        <h3 className="text-base font-semibold flex items-center gap-2 text-white/90">
+          <FiList className="text-violet-400" size={18} /> Select Episode
         </h3>
-        <div className="flex items-center gap-4 text-sm">
-          <div className="text-gray-400">{episodes.length} Episodes Total</div>
+        <div className="flex items-center gap-3 text-xs">
+          <div className="text-gray-500">{episodes.length} Episodes</div>
           {fillerCount > 0 && (
-            <div className="flex items-center gap-2 text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
-              <FiAlertCircle className="w-4 h-4" />
+            <div className="flex items-center gap-1.5 text-amber-400/80 bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/20">
+              <FiAlertCircle size={12} />
               <span className="font-medium">{fillerCount} Filler</span>
             </div>
           )}
@@ -1312,13 +1498,13 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
       </div>
       
       {fillerCount > 0 && (
-        <div className="mb-4 p-3 bg-amber-400/5 border border-amber-400/10 rounded-lg flex items-start gap-2 text-sm text-amber-200/80">
-          <FiAlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>Filler episodes are marked in <span className="text-amber-400 font-medium">amber</span>.</span>
+        <div className="mb-4 p-2.5 bg-amber-400/5 border border-amber-400/10 rounded-lg flex items-start gap-2 text-xs text-amber-200/70">
+          <FiAlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+          <span>Filler episodes marked in <span className="text-amber-400 font-medium">amber</span></span>
         </div>
       )}
       
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
         {episodes.map(ep => {
           const isCurrent = currentEpisode === ep.number;
           const isFiller = ep.isFiller;
@@ -1328,47 +1514,45 @@ const EpisodeSelector = ({ episodes, currentEpisode, onSelect }) => {
               key={ep.number}
               onClick={() => onSelect(ep.number)}
               className={`
-                group relative p-3 rounded-xl text-left transition-all duration-200 border
+                group relative p-2.5 rounded-lg text-left transition-all duration-200 border
                 ${isCurrent 
-                  ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-600/25 scale-[1.02]' 
+                  ? 'bg-violet-600 border-violet-500 shadow-lg shadow-violet-600/20' 
                   : isFiller
-                    ? 'bg-amber-900/20 border-amber-700/30 hover:bg-amber-900/30 hover:border-amber-600/50'
-                    : 'bg-gray-700/50 border-gray-600/30 hover:bg-gray-700 hover:border-gray-500/50'
+                    ? 'bg-amber-950/30 border-amber-800/30 hover:bg-amber-950/50 hover:border-amber-700/40'
+                    : 'bg-gray-800/50 border-white/5 hover:bg-gray-800 hover:border-white/10'
                 }
               `}
             >
-              <div className={`
-                inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold mb-2
-                ${isCurrent 
-                  ? 'bg-white/20 text-white' 
-                  : isFiller
-                    ? 'bg-amber-500/20 text-amber-400'
-                    : 'bg-gray-600/50 text-gray-300'
-                }
-              `}>
-                {ep.number}
+              <div className="flex items-center justify-between mb-1">
+                <span className={`
+                  text-xs font-semibold
+                  ${isCurrent 
+                    ? 'text-white' 
+                    : isFiller
+                      ? 'text-amber-400/80'
+                      : 'text-gray-400'
+                  }
+                `}>
+                  EP {ep.number}
+                </span>
+                
+                {isCurrent && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                )}
               </div>
               
               {isFiller && (
-                <div className="absolute top-2 right-2">
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-amber-950 uppercase tracking-wider">
-                    Filler
-                  </span>
-                </div>
+                <span className="inline-block text-[9px] font-medium text-amber-500/90 uppercase tracking-wider">
+                  Filler
+                </span>
               )}
               
               <p className={`
-                text-xs font-medium line-clamp-2 leading-relaxed
-                ${isCurrent ? 'text-white' : isFiller ? 'text-amber-200/70' : 'text-gray-400'}
+                text-[11px] font-medium line-clamp-1 leading-tight mt-0.5
+                ${isCurrent ? 'text-white/90' : isFiller ? 'text-amber-200/60' : 'text-gray-500'}
               `}>
                 {ep.title || `Episode ${ep.number}`}
               </p>
-              
-              {isCurrent && (
-                <div className="absolute bottom-2 right-2">
-                  <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                </div>
-              )}
             </button>
           );
         })}
@@ -1382,52 +1566,52 @@ const ServerSelector = ({ servers, selectedType, selectedServer, onServerChange,
   const availableServers = servers[selectedType] || []
   
   return (
-    <div className="mt-6 bg-gray-900/80 backdrop-blur-md rounded-2xl p-5 border border-white/10 shadow-2xl">
-      <div className="flex gap-2 mb-5">
+    <div className="mt-4 bg-gray-900/40 rounded-xl p-5 border border-white/5">
+      <div className="flex gap-2 mb-4">
         {['sub', 'dub', 'raw'].map(type => (
           <button
             key={type}
             onClick={() => onTypeChange(type)}
-            className={`px-5 py-2.5 rounded-xl capitalize transition-all duration-300 font-medium flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg capitalize transition-all duration-200 text-sm font-medium flex items-center gap-2 ${
               selectedType === type 
-                ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25' 
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-400 border border-white/5'
+                ? 'bg-violet-600 text-white' 
+                : 'bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 border border-white/5'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-current"></span>
+            <span className={`w-1.5 h-1.5 rounded-full ${selectedType === type ? 'bg-white' : 'bg-gray-500'}`}></span>
             {type} 
-            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedType === type ? 'bg-white/20' : 'bg-gray-700'}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedType === type ? 'bg-white/20' : 'bg-gray-700'}`}>
               {servers[type]?.length || 0}
             </span>
           </button>
         ))}
       </div>
 
-      <div className="mb-3">
-        <p className="text-sm text-gray-400 mb-3 flex items-center gap-2">
-          <FiMonitor className="text-purple-400" /> Available Servers:
+      <div>
+        <p className="text-xs text-gray-500 mb-3 flex items-center gap-2 uppercase tracking-wider">
+          <FiMonitor size={14} className="text-violet-400" /> Available Servers
         </p>
         {availableServers.length > 0 ? (
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             {availableServers.map((server, index) => (
               <button
                 key={server.name || index}
                 onClick={() => onServerChange(server)}
-                className={`px-5 py-3 text-sm rounded-xl transition-all duration-300 font-medium flex items-center gap-2 ${
+                className={`px-4 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${
                   selectedServer?.name === server.name 
-                    ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/30 scale-105' 
-                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-white/5 hover:scale-105'
+                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20' 
+                    : 'bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 border border-white/5 hover:border-white/10'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${selectedServer?.name === server.name ? 'bg-white' : 'bg-gray-500'}`}></span>
+                <span className={`w-1.5 h-1.5 rounded-full ${selectedServer?.name === server.name ? 'bg-white' : 'bg-gray-500'}`}></span>
                 {server.name || `Server ${index + 1}`}
               </button>
             ))}
           </div>
         ) : (
-          <div className="bg-gray-800/50 rounded-xl p-4 text-center border border-white/5">
-            <p className="text-gray-500">No servers available for {selectedType}</p>
-            <p className="text-gray-600 text-sm mt-1">Try switching to a different type</p>
+          <div className="bg-gray-800/30 rounded-lg p-4 text-center border border-white/5">
+            <p className="text-gray-500 text-sm">No servers available for {selectedType}</p>
+            <p className="text-gray-600 text-xs mt-1">Try switching to a different type</p>
           </div>
         )}
       </div>

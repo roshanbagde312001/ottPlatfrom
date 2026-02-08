@@ -39,7 +39,7 @@ const AnimeDetailsPage = () => {
   const [showServers, setShowServers] = useState(false)
   const [nextEpisodeTime, setNextEpisodeTime] = useState(null)
   const [expandedDescription, setExpandedDescription] = useState(false)
-const PROXY_BASE = 'https://api.animo.qzz.io/api/v1';
+const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
   // --- Fetch Anime Data ---
   const fetchDetails = useCallback(async () => {
     setLoading(true)
