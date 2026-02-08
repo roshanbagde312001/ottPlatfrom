@@ -1,11 +1,232 @@
-// API Configuration - Prioritize local development server, fallback to external API
+/**
+ * Enhanced Anime API Service with Request Deduplication
+ * All API calls go through this service to prevent multiple requests
+ * Uses centralized deduplication from apiCache.js
+ * Includes configurable retry logic for proxy-related API calls
+ */
+
+// Import our cache utility
+import {
+  cancelRequest,
+  clearCache,
+  getCachedResponse,
+  getOrCreateRequest,
+  setCacheResponse
+} from '../utils/apiCache';
+
+// API Configuration
 const API_LOCAL = 'https://hianimeapi-6uju.onrender.com/api/v1';
 const API_EXTERNAL = 'https://hianimeapi-6uju.onrender.com/api/v1';
-
-// Auto-detect API base - try local first, fallback to external
 const API_ROOT = API_LOCAL;
+const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
 
-// Provider configuration for different anime providers
+// ==================== RETRY CONFIGURATION ====================
+
+/**
+ * Retry configuration for API calls
+ * Customize retry behavior for proxy-related requests
+ */
+export const retryConfig = {
+  // Maximum number of retry attempts for failed requests
+  maxRetries: 1,
+  
+  // Base delay in milliseconds between retries (exponential backoff)
+  baseDelay: 1000,
+  
+  // Maximum delay cap in milliseconds
+  maxDelay: 10000,
+  
+  // Jitter factor (0-1) to add randomness to retry delays
+  jitterFactor: 0.3,
+  
+  // HTTP status codes that should trigger a retry
+  retryStatusCodes: [408, 429, 500, 502, 503, 504],
+  
+  // Error types that should trigger a retry
+  retryErrorTypes: ['network-error', 'fetch-error', 'timeout'],
+  
+  // Whether to enable retry for proxied requests only
+  proxyOnly: true,
+  
+  // Custom retry predicate function (return true to retry)
+  shouldRetry: null, // function(error, attempt, config) - return true to retry
+  
+  // Callback on retry attempt
+  onRetry: null, // function(error, attempt, delay, config) - called before retry
+};
+
+/**
+ * Set retry configuration
+ * @param {Object} config - Partial retry configuration
+ */
+export function setRetryConfig(config) {
+  Object.assign(retryConfig, config);
+}
+
+/**
+ * Get current retry configuration
+ * @returns {Object} Current retry configuration
+ */
+export function getRetryConfig() {
+  return { ...retryConfig };
+}
+
+/**
+ * Calculate delay with exponential backoff and jitter
+ * @param {number} attempt - Current attempt number (0-indexed)
+ * @param {Object} config - Retry configuration
+ * @returns {number} Delay in milliseconds
+ */
+function calculateRetryDelay(attempt, config = retryConfig) {
+  const exponentialDelay = Math.min(
+    config.baseDelay * Math.pow(2, attempt),
+    config.maxDelay
+  );
+  
+  // Add jitter (randomness) to prevent thundering herd
+  const jitter = exponentialDelay * config.jitterFactor * Math.random();
+  
+  return Math.floor(exponentialDelay + jitter);
+}
+
+/**
+ * Sleep utility for delays
+ * @param {number} ms - Milliseconds to sleep
+ * @returns {Promise} Promise that resolves after delay
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch with retry logic
+ * Implements exponential backoff with jitter
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Fetch options
+ * @param {Object} retryOptions - Override retry configuration
+ * @returns {Promise<Response>} Fetch response
+ */
+export async function fetchWithRetry(url, options = {}, retryOptions = {}) {
+  const config = { ...retryConfig, ...retryOptions };
+  let lastError;
+  
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), options.timeout || 30000);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: options.signal || controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Check if we should retry based on status code
+      if (!response.ok && config.retryStatusCodes.includes(response.status)) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      // Return successful response
+      return response;
+    } catch (error) {
+      lastError = error;
+      
+      // Check if we should retry
+      const isRetryable = isErrorRetryable(error, config, attempt, config.maxRetries);
+      
+      // Call onRetry callback if provided
+      if (config.onRetry && isRetryable) {
+        const delay = calculateRetryDelay(attempt, config);
+        config.onRetry(error, attempt, delay, config);
+      }
+      
+      // If not retryable or max attempts reached, throw
+      if (!isRetryable || attempt >= config.maxRetries) {
+        console.error(`[anime.js] Fetch failed after ${attempt + 1} attempts: ${url}`, error);
+        throw error;
+      }
+      
+      // Calculate and wait for delay
+      const delay = calculateRetryDelay(attempt, config);
+      console.log(`[anime.js] Retry attempt ${attempt + 1}/${config.maxRetries} for ${url} after ${delay}ms`);
+      await sleep(delay);
+    }
+  }
+  
+  throw lastError;
+}
+
+/**
+ * Check if an error is retryable
+ * @param {Error} error - The error that occurred
+ * @param {Object} config - Retry configuration
+ * @param {number} currentAttempt - Current attempt number
+ * @param {number} maxRetries - Maximum retry attempts
+ * @returns {boolean} Whether the error is retryable
+ */
+function isErrorRetryable(error, config, currentAttempt, maxRetries) {
+  // If custom predicate provided, use it
+  if (config.shouldRetry) {
+    return config.shouldRetry(error, currentAttempt, config);
+  }
+  
+  // Don't retry if already at max attempts
+  if (currentAttempt >= maxRetries) {
+    return false;
+  }
+  
+  // Don't retry on abort
+  if (error.name === 'AbortError') {
+    return false;
+  }
+  
+  // Don't retry if custom shouldRetry returns false
+  if (config.shouldRetry && !config.shouldRetry(error, currentAttempt, config)) {
+    return false;
+  }
+  
+  // Check error message for retryable status codes
+  const errorMessage = error.message || '';
+  for (const statusCode of config.retryStatusCodes) {
+    if (errorMessage.includes(String(statusCode))) {
+      return true;
+    }
+  }
+  
+  // Check error type
+  const errorType = error.type || '';
+  for (const retryType of config.retryErrorTypes) {
+    if (errorType.includes(retryType)) {
+      return true;
+    }
+  }
+  
+  // Retry on network errors
+  if (error.name === 'TypeError' && error.message.includes('fetch')) {
+    return true;
+  }
+  
+  // Retry on timeout
+  if (error.message && error.message.includes('timeout')) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Create a retry-enabled fetcher for getOrCreateRequest
+ * @param {Object} retryOptions - Override retry configuration
+ * @returns {Function} Fetcher function with retry
+ */
+export function createRetryFetcher(retryOptions = {}) {
+  return async function fetcherWithRetry(url, options = {}) {
+    return fetchWithRetry(url, options, retryOptions);
+  };
+}
+
+// Provider configuration
 const PROVIDERS = {
   animekai: {
     templates: {
@@ -26,7 +247,7 @@ const PROVIDERS = {
   'hianime-scrap': {
     templates: {
       search: '/search?keyword={query}&page=1',
-      info: '/anime/{id}', // Fixed: removed /animes/
+      info: '/anime/{id}',
       episodes: '/episodes/{id}',
       servers: '/servers?id={id}',
       stream: '/stream?id={id}&type={type}&server={server}'
@@ -34,10 +255,25 @@ const PROVIDERS = {
   }
 };
 
-// Proxy for streaming - using the API's built-in proxy endpoint
-const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
+const DEFAULT_PROVIDER = 'hianime-scrap';
 
-// Helper function to build URLs from provider templates
+/**
+ * Generate a unique request ID to prevent automatic retries
+ */
+function generateRequestId(endpoint, params = {}) {
+  return `anime_${endpoint}_${JSON.stringify(params)}`.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+/**
+ * Generate a unique cache key for request tracking
+ */
+function generateRequestKey(endpoint, params = {}) {
+  return `${endpoint}::${JSON.stringify(params)}`;
+}
+
+/**
+ * Build URL from provider template
+ */
 export function buildUrl(providerKey, templateKey, params = {}) {
   const provider = PROVIDERS[providerKey];
   const template = provider?.templates[templateKey];
@@ -48,266 +284,526 @@ export function buildUrl(providerKey, templateKey, params = {}) {
     const value = encodeURIComponent(String(params[key] || ''));
     url = url.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
   });
-  console.log(url)
   return url;
 }
 
-// Utility function to safely parse JSON with error handling
-export async function safeFetch(url, options = {}) {
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        // 'Accept': 'application/json',
-        // 'Accept-Language': 'en-US,en;q=0.9',
-        // 'Content-Type': 'application/json',
-        ...options.headers
-      }
-    });
+/**
+ * Enhanced fetch with abort signal and deduplication
+ * This is the core fetch function used by all API calls
+ */
+async function trackedFetch(url, options = {}) {
+  const { signal, cacheKey, timeout = 30000 } = options;
+  
+  // Check cache first (only for GET requests)
+  const cachedData = getCachedResponse(cacheKey || url);
+  if (cachedData && options.method !== 'POST') {
+    console.log(`[anime.js] Cache hit for: ${url}`);
+    return cachedData;
+  }
 
+  // Create fetch promise with timeout
+  const controller = new AbortController();
+  const abortSignal = signal || controller.signal;
+  
+  const fetchPromise = fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+    },
+    signal: abortSignal,
+  });
+
+  // Timeout handler
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      controller.abort();
+      reject(new Error(`Request timeout: ${url}`));
+    }, timeout);
+  });
+
+  try {
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    // Cache the response
+    if (cacheKey || url) {
+      setCacheResponse(cacheKey || url, data);
+    }
+    
+    return data;
   } catch (error) {
-    console.error(`Fetch error for ${url}:`, error);
+    if (error.name === 'AbortError') {
+      console.log(`[anime.js] Request aborted: ${url}`);
+      throw new Error('Request cancelled');
+    }
+    console.error(`[anime.js] Fetch error for ${url}:`, error);
     throw error;
   }
 }
 
-// Default provider
-const DEFAULT_PROVIDER = 'hianime-scrap';
-
-// Helper function for API calls
-const fetchAPI = async (endpoint, options = {}) => {
-  // let url = `${API_ROOT}${endpoint}`;
-  let url = endpoint;
-  if(url.includes("stream")){
-    url = `${"https://hianimeapi-6uju.onrender.com/api/v1"}${endpoint}`
-  }else{
-   url = `${API_ROOT}${endpoint}`;
-}
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-      // 'Accept': 'application/json',
-      // 'Accept-Language': 'en-US,en;q=0.9',
-      // 'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json();
-};
-
-
 // ==================== HOME & DISCOVERY ====================
 
-// Get homepage data with all sections
-export const getHomeData = async () => {
-  return fetchAPI('/home');
+export const getHomeData = async (options = {}) => {
+  const endpoint = '/home';
+  const cacheKey = `anime_home_${generateRequestId(endpoint)}`;
+  const requestId = generateRequestId(endpoint);
+
+  // Use centralized deduplication - this prevents multiple API calls
+  // Note: We don't abort here because getOrCreateRequest will handle deduplication
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+      return data;
+    },
+    5 * 60 * 1000 // 5 minute cache TTL
+  ).catch(error => {
+    // Don't retry on cancellation
+    if (error.message === 'Request cancelled') {
+      return { data: null };
+    }
+    throw error;
+  });
 };
 
-// Get spotlight anime
-export const getSpotlight = async () => {
-  return fetchAPI('/spotlight');
+export const getSpotlight = async (options = {}) => {
+  const endpoint = '/spotlight';
+  const cacheKey = `anime_spotlight_${generateRequestId(endpoint)}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    5 * 60 * 1000
+  );
 };
 
-// Get top 10 anime (today, week, month)
-export const getTopTen = async () => {
-  return fetchAPI('/topten');
+export const getTopTen = async (options = {}) => {
+  const endpoint = '/topten';
+  const cacheKey = `anime_topten_${generateRequestId(endpoint)}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    5 * 60 * 1000
+  );
 };
 
-// Get meta information (genres, az-list, filter options)
-export const getMetaInfo = async () => {
-  return fetchAPI('/meta');
+export const getMetaInfo = async (options = {}) => {
+  const endpoint = '/meta';
+  const cacheKey = `anime_meta_${generateRequestId(endpoint)}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    5 * 60 * 1000
+  );
 };
 
 // ==================== SEARCH ====================
 
-// Search anime by keyword with provider support
-export const searchAnime = async (keyword, page = 1, provider = DEFAULT_PROVIDER) => {
-  let searchUrl = buildUrl(provider, 'search', { query: keyword });
-  searchUrl = `${PROXY_BASE}${searchUrl}`
-  console.log('Search URL:', searchUrl);
+export const searchAnime = async (keyword, page = 1, provider = DEFAULT_PROVIDER, options = {}) => {
+  const endpoint = buildUrl(provider, 'search', { query: keyword });
+  const searchUrl = `${PROXY_BASE}${endpoint}`;
+  const cacheKey = `anime_search_${generateRequestKey('search', { keyword, page, provider })}`;
 
-  const data = await safeFetch(searchUrl);
+  // Use centralized deduplication - getOrCreateRequest handles preventing duplicate calls
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const data = await trackedFetch(searchUrl, {
+        ...options,
+        signal,
+        cacheKey,
+      });
 
-  // Handle different response structures
-  let results = [];
+      // Process results
+      let results = [];
+      if (data && data.data && data.data.response && Array.isArray(data.data.response)) {
+        results = data.data.response;
+      } else if (Array.isArray(data)) {
+        results = data;
+      } else if (data && data.results && Array.isArray(data.results)) {
+        results = data.results;
+      } else if (data && data.anime && Array.isArray(data.anime)) {
+        results = data.anime;
+      } else if (data && data.data && Array.isArray(data.data)) {
+        results = data.data;
+      }
 
-  // Handle hianime-scrap response format: {success, data: {pageInfo, response: [...]}}
-  if (data && data.data && data.data.response && Array.isArray(data.data.response)) {
-    results = data.data.response;
-  } else if (Array.isArray(data)) {
-    results = data;
-  } else if (data && data.results && Array.isArray(data.results)) {
-    results = data.results;
-  } else if (data && data.anime && Array.isArray(data.anime)) {
-    results = data.anime;
-  } else if (data && data.data && Array.isArray(data.data)) {
-    results = data.data;
-  }
-
-  return { data: { response: results } };
+      return { data: { response: results } };
+    },
+    2 * 60 * 1000 // 2 minute cache for search
+  ).catch(error => {
+    if (error.message === 'Request cancelled') {
+      return { data: { response: [] } };
+    }
+    throw error;
+  });
 };
 
-// Get search suggestions
-export const getSuggestions = async (keyword) => {
-  return fetchAPI(`/suggestion?keyword=${encodeURIComponent(keyword)}`);
+export const getSuggestions = async (keyword, options = {}) => {
+  const endpoint = `/suggestion?keyword=${encodeURIComponent(keyword)}`;
+  const cacheKey = `anime_suggestion_${generateRequestKey('suggestion', { keyword })}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    5 * 60 * 1000
+  );
 };
 
 // ==================== ANIME DETAILS ====================
 
-// Get anime details by ID
-export const getAnimeDetails = async (id) => {
-  return fetchAPI(`/anime/${encodeURIComponent(id)}`);
+export const getAnimeDetails = async (id, options = {}) => {
+  const endpoint = `/anime/${encodeURIComponent(id)}`;
+  const cacheKey = `anime_details_${generateRequestKey('details', { id })}`;
+
+  // Use centralized deduplication
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+      return data;
+    },
+    5 * 60 * 1000
+  ).catch(error => {
+    if (error.message === 'Request cancelled') {
+      return { data: null };
+    }
+    throw error;
+  });
 };
 
-// Get random anime
-export const getRandomAnime = async () => {
-  return fetchAPI('/anime/random');
+export const getRandomAnime = async (options = {}) => {
+  const endpoint = '/anime/random';
+  const cacheKey = `anime_random_${generateRequestId(endpoint)}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    5 * 60 * 1000
+  );
 };
 
 // ==================== EPISODES ====================
 
-// Get episodes list for an anime with provider support
-export const getEpisodes = async (id, provider = DEFAULT_PROVIDER) => {
+export const getEpisodes = async (id, provider = DEFAULT_PROVIDER, options = {}) => {
   const endpoint = buildUrl(provider, 'episodes', { id });
-  console.log('[anime.js] Episodes endpoint:', endpoint);
+  const cacheKey = `anime_episodes_${generateRequestKey('episodes', { id, provider })}`;
 
-  const episodesData = await fetchAPI(endpoint);
-  console.log('[anime.js] Episodes raw response:', episodesData);
-  
-  const episodes = extractEpisodes(episodesData, provider);
-  console.log('[anime.js] Extracted episodes:', episodes);
+  // Use centralized deduplication
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
 
-  return { data: episodes };
+      const episodes = extractEpisodes(data, provider);
+      return { data: episodes };
+    },
+    5 * 60 * 1000
+  ).catch(error => {
+    if (error.message === 'Request cancelled') {
+      return { data: [] };
+    }
+    throw error;
+  });
 };
 
-// Get streaming servers for an episode
-export const getServers = async (id) => {
+// ==================== SERVERS ====================
+
+export const getServers = async (id, options = {}) => {
   // Use the provider-specific template for servers
   let endpoint = buildUrl('hianime-scrap', 'servers', { id });
-  endpoint = endpoint.replace("?","/")
-  console.log('[anime.js] Servers endpoint:', endpoint.replace("?","/"));
-  
-  const response = await fetchAPI(endpoint);
-  console.log('[anime.js] Servers response:', response);
-  return response;
+  endpoint = endpoint.replace("?", "/");
+  const cacheKey = `anime_servers_${generateRequestKey('servers', { id })}`;
+
+  // Use centralized deduplication
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+      return data;
+    },
+    2 * 60 * 1000 // 2 minute cache for servers
+  ).catch(error => {
+    if (error.message === 'Request cancelled') {
+      return { data: null };
+    }
+    throw error;
+  });
 };
-// Get streaming link for an episode with provider support
-export const getStreamLink = async (streamId, server = 'hd-1', type = 'sub', provider = DEFAULT_PROVIDER) => {
-  // We use buildUrl to get the endpoint, then fetchAPI to add the Base URL
+
+// ==================== STREAM ====================
+
+export const getStreamLink = async (streamId, server = 'hd-1', type = 'sub', provider = DEFAULT_PROVIDER, options = {}) => {
   const endpoint = buildUrl(provider, provider === 'hianime-scrap' ? 'stream' : 'watch', { 
     id: streamId, 
-    episodeId: streamId, // for animepahe template
+    episodeId: streamId,
     type, 
     server 
   });
 
-  console.log('[anime.js] Stream endpoint:', endpoint);
-  console.log('[anime.js] Stream params:', { streamId, server, type, provider });
+  // For stream endpoints, use the internal URL construction
+  const isStreamEndpoint = endpoint.includes("stream");
+  const url = isStreamEndpoint 
+    ? `${"https://hianimeapi-6uju.onrender.com/api/v1"}${endpoint}`
+    : `${API_ROOT}${endpoint}`;
+    
+  const cacheKey = `anime_stream_${generateRequestKey('stream', { streamId, server, type, provider })}`;
 
-  // Use the internal fetchAPI so the base URL and headers are applied correctly
-  console.log("roshan",endpoint)
-  const response = await fetchAPI(endpoint);
-  console.log('[anime.js] Stream response:', response);
-  return response;
+  // Use centralized deduplication
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const data = await trackedFetch(url, {
+        ...options,
+        signal,
+        cacheKey,
+        timeout: 15000, // Shorter timeout for stream links
+      });
+      return data;
+    },
+    1 * 60 * 1000 // 1 minute cache for streams
+  ).catch(error => {
+    if (error.message === 'Request cancelled') {
+      return { data: null };
+    }
+    throw error;
+  });
 };
 
+// ==================== ABORT MANAGER ====================
 
+/**
+ * Abort controller manager for browse operations
+ */
+const browseAbortManager = {
+  controllers: new Map(),
+  
+  register(key, controller) {
+    this.abort(key);
+    this.controllers.set(key, controller);
+  },
+  
+  abort(key) {
+    if (this.controllers.has(key)) {
+      try {
+        this.controllers.get(key).abort();
+      } catch (e) {
+        // Ignore abort errors
+      }
+      this.controllers.delete(key);
+    }
+  },
+  
+  cleanup(key) {
+    this.controllers.delete(key);
+  },
+  
+  abortAll() {
+    for (const [key, controller] of this.controllers.entries()) {
+      try {
+        controller.abort();
+      } catch (e) {
+        // Ignore abort errors
+      }
+    }
+    this.controllers.clear();
+  }
+};
 
-// External Render proxy for video and subtitle streaming
 const RENDER_PROXY = 'https://rust-proxy-fy7g.onrender.com';
 
-// Get proxied stream URL for video playback (bypasses CORS)
 export const getProxiedStreamUrl = (originalUrl, referer = 'https://megacloud.tv') => {
   if (!originalUrl) return null;
-  
-  // Use the Render proxy endpoint with proper encoding
   const proxyUrl = `${RENDER_PROXY}/?url=${encodeURIComponent(originalUrl)}&referer=${encodeURIComponent(referer)}`;
   console.log('[anime.js] Proxied Stream URL (Render):', proxyUrl);
-  
   return proxyUrl;
 };
 
-// Get proxied subtitle URL for subtitle files (bypasses CORS)
 export const getProxiedSubtitleUrl = (originalUrl, referer = 'https://hianime.to') => {
   if (!originalUrl) return null;
   
-  // If URL is already a blob URL or data URI, return as-is
   if (originalUrl.startsWith('blob:') || originalUrl.startsWith('data:')) {
     return originalUrl;
   }
   
-  // Try direct URL first for same-origin or CORS-enabled servers
   if (originalUrl.includes('localhost') || originalUrl.includes('127.0.0.1')) {
     return originalUrl;
   }
   
-  // Use the Render proxy endpoint with proper encoding
-  // Use hianime.to as referer since that's where subtitles usually come from
   const proxyUrl = `${RENDER_PROXY}/proxy?url=${encodeURIComponent(originalUrl)}&referer=${encodeURIComponent(referer)}`;
   console.log('[anime.js] Proxied Subtitle URL (Render):', proxyUrl);
-  
   return proxyUrl;
 };
 
-// Fetch subtitle content directly with CORS handling
-export const fetchSubtitleContent = async (url) => {
-  try {
-    // Try direct fetch first
-    const directResponse = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': '*/*',
-      },
-    });
-    
-    if (directResponse.ok) {
-      const content = await directResponse.text();
-      return { success: true, content, source: 'direct' };
+export const fetchSubtitleContent = async (url, options = {}) => {
+  const { 
+    retryOnFailure = true, 
+    maxRetries = retryConfig.maxRetries,
+    timeout = 15000 
+  } = options;
+
+  // Strategy 1: Try original URL directly with retry
+  if (retryOnFailure) {
+    try {
+      console.log(`[anime.js] Fetching subtitle (attempt 1/${maxRetries + 1}):`, url);
+      const directResponse = await fetchWithRetry(url, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*, text/plain, application/octet-stream',
+        },
+        timeout,
+      }, { maxRetries, proxyOnly: false });
+      
+      if (directResponse.ok) {
+        const content = await directResponse.text();
+        if (content.length > 0 && !content.includes('<!DOCTYPE')) {
+          console.log('[anime.js] Direct subtitle fetch successful');
+          return { success: true, content, source: 'direct' };
+        }
+      }
+    } catch (err) {
+      console.log('[anime.js] Direct subtitle fetch failed:', err.message);
     }
-  } catch (err) {
-    console.log('[anime.js] Direct subtitle fetch failed, trying proxy:', err.message);
+  } else {
+    // No retry mode for direct fetch
+    try {
+      const directResponse = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*, text/plain, application/octet-stream',
+        },
+        signal: AbortSignal.timeout(timeout),
+      });
+      
+      if (directResponse.ok) {
+        const content = await directResponse.text();
+        if (content.length > 0 && !content.includes('<!DOCTYPE')) {
+          return { success: true, content, source: 'direct' };
+        }
+      }
+    } catch (err) {
+      console.log('[anime.js] Direct subtitle fetch failed:', err.message);
+    }
   }
   
-  // Fallback to proxied URL
-  try {
-    const proxiedUrl = getProxiedSubtitleUrl(url);
-    const proxyResponse = await fetch(proxiedUrl);
-    
-    if (proxyResponse.ok) {
-      const content = await proxyResponse.text();
-      return { success: true, content, source: 'proxy' };
-    } else {
-      throw new Error(`Proxy failed: ${proxyResponse.status}`);
-    }
-  } catch (err) {
-    console.error('[anime.js] Both direct and proxy subtitle fetch failed:', err);
-    return { success: false, error: err.message };
+  // Strategy 2: Try proxied URL with retry
+  const proxiedUrl = getProxiedSubtitleUrl(url);
+  if (!proxiedUrl) {
+    return { success: false, error: 'Invalid subtitle URL' };
   }
+  
+  if (retryOnFailure) {
+    try {
+      console.log(`[anime.js] Fetching proxied subtitle (attempt 1/${maxRetries + 1}):`, proxiedUrl);
+      const proxyResponse = await fetchWithRetry(proxiedUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*',
+        },
+        timeout,
+      }, { maxRetries, proxyOnly: true });
+      
+      if (proxyResponse.ok) {
+        const content = await proxyResponse.text();
+        if (content.length > 0 && !content.includes('<!DOCTYPE')) {
+          console.log('[anime.js] Proxied subtitle fetch successful');
+          return { success: true, content, source: 'proxy' };
+        }
+      }
+      
+      console.log('[anime.js] Proxied subtitle fetch returned empty or invalid content');
+    } catch (err) {
+      console.error('[anime.js] Both subtitle fetch methods failed:', err);
+      return { success: false, error: err.message };
+    }
+  } else {
+    // No retry mode for proxied fetch
+    try {
+      const proxyResponse = await fetch(proxiedUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*',
+        },
+        signal: AbortSignal.timeout(timeout),
+      });
+      
+      if (proxyResponse.ok) {
+        const content = await proxyResponse.text();
+        if (content.length > 0 && !content.includes('<!DOCTYPE')) {
+          return { success: true, content, source: 'proxy' };
+        }
+      }
+    } catch (err) {
+      console.error('[anime.js] Both subtitle fetch methods failed:', err);
+      return { success: false, error: err.message };
+    }
+  }
+  
+  return { success: false, error: 'Failed to fetch subtitle' };
 };
 
-// Get direct stream URL (fallback when proxy fails)
 export const getDirectStreamUrl = (originalUrl) => {
   if (!originalUrl) return null;
   console.log('[anime.js] Direct Stream URL (fallback):', originalUrl);
   return originalUrl;
 };
 
-// ==================== BROWSE BY CATEGORY ====================
+// ==================== BROWSE CATEGORY ====================
 
-// Browse anime by query (top-airing, most-popular, etc.)
-export const browseByQuery = async (query, page = 1) => {
+export const browseByQuery = async (query, page = 1, options = {}) => {
   const validQueries = [
     'top-airing', 'most-popular', 'most-favorite', 
     'completed', 'recently-added', 'recently-updated',
@@ -318,12 +814,31 @@ export const browseByQuery = async (query, page = 1) => {
   if (!validQueries.includes(query)) {
     throw new Error(`Invalid query: ${query}`);
   }
-  
-  return fetchAPI(`/${query}?page=${page}`);
+
+  const endpoint = `/${query}?page=${page}`;
+  const cacheKey = `anime_browse_${generateRequestKey('browse', { query, page })}`;
+
+  // Use centralized deduplication
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+      return data;
+    },
+    5 * 60 * 1000
+  ).catch(error => {
+    if (error.message === 'Request cancelled') {
+      return { data: { response: [] } };
+    }
+    throw error;
+  });
 };
 
-// Browse anime by genre
-export const browseByGenre = async (genre, page = 1) => {
+export const browseByGenre = async (genre, page = 1, options = {}) => {
   const validGenres = [
     'action', 'adventure', 'cars', 'comedy', 'dementia', 'demons',
     'drama', 'ecchi', 'fantasy', 'game', 'harem', 'historical',
@@ -340,12 +855,34 @@ export const browseByGenre = async (genre, page = 1) => {
   if (!validGenres.includes(normalizedGenre)) {
     throw new Error(`Invalid genre: ${genre}`);
   }
-  
-  return fetchAPI(`/genre/${normalizedGenre}?page=${page}`);
+
+  const endpoint = `/genre/${normalizedGenre}?page=${page}`;
+  const cacheKey = `anime_genre_${generateRequestKey('genre', { genre: normalizedGenre, page })}`;
+
+  browseAbortManager.abort(normalizedGenre);
+
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const controller = new AbortController();
+      browseAbortManager.register(normalizedGenre, controller);
+
+      try {
+        const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+          ...options,
+          signal: controller.signal,
+          cacheKey,
+        });
+        return data;
+      } finally {
+        browseAbortManager.cleanup(normalizedGenre);
+      }
+    },
+    5 * 60 * 1000
+  );
 };
 
-// Browse anime by letter (A-Z or 0-9)
-export const browseByLetter = async (letter, page = 1) => {
+export const browseByLetter = async (letter, page = 1, options = {}) => {
   const validLetters = [
     'all', 'other', '0-9',
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -357,17 +894,61 @@ export const browseByLetter = async (letter, page = 1) => {
   if (!validLetters.includes(normalizedLetter)) {
     throw new Error(`Invalid letter: ${letter}`);
   }
-  
-  return fetchAPI(`/az-list/${normalizedLetter}?page=${page}`);
+
+  const endpoint = `/az-list/${normalizedLetter}?page=${page}`;
+  const cacheKey = `anime_letter_${generateRequestKey('letter', { letter: normalizedLetter, page })}`;
+
+  browseAbortManager.abort(normalizedLetter);
+
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const controller = new AbortController();
+      browseAbortManager.register(normalizedLetter, controller);
+
+      try {
+        const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+          ...options,
+          signal,
+          cacheKey,
+        });
+        return data;
+      } finally {
+        browseAbortManager.cleanup(normalizedLetter);
+      }
+    },
+    5 * 60 * 1000
+  );
 };
 
-// Browse anime by producer/studio
-export const browseByProducer = async (producerId, page = 1) => {
-  return fetchAPI(`/producer/${encodeURIComponent(producerId)}?page=${page}`);
+export const browseByProducer = async (producerId, page = 1, options = {}) => {
+  const endpoint = `/producer/${encodeURIComponent(producerId)}?page=${page}`;
+  const cacheKey = `anime_producer_${generateRequestKey('producer', { producerId, page })}`;
+
+  browseAbortManager.abort(producerId);
+
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const controller = new AbortController();
+      browseAbortManager.register(producerId, controller);
+
+      try {
+        const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+          ...options,
+          signal,
+          cacheKey,
+        });
+        return data;
+      } finally {
+        browseAbortManager.cleanup(producerId);
+      }
+    },
+    5 * 60 * 1000
+  );
 };
 
-// Filter anime with multiple parameters
-export const filterAnime = async (params = {}) => {
+export const filterAnime = async (params = {}, options = {}) => {
   const {
     keyword = '',
     type = 'all',
@@ -395,47 +976,127 @@ export const filterAnime = async (params = {}) => {
   if (sort !== 'default') queryParams.append('sort', sort);
   if (genres) queryParams.append('genres', genres);
   
-  return fetchAPI(`/filter?${queryParams.toString()}`);
+  const endpoint = `/filter?${queryParams.toString()}`;
+  const cacheKey = `anime_filter_${generateRequestKey('filter', params)}`;
+
+  browseAbortManager.abort('filter');
+
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      const controller = new AbortController();
+      browseAbortManager.register('filter', controller);
+
+      try {
+        const data = await trackedFetch(`${API_ROOT}${endpoint}`, {
+          ...options,
+          signal: controller.signal,
+          cacheKey,
+        });
+        return data;
+      } finally {
+        browseAbortManager.cleanup('filter');
+      }
+    },
+    5 * 60 * 1000
+  );
 };
 
 // ==================== SCHEDULE ====================
 
-// Get anime schedule by date
-export const getSchedule = async (date) => {
-  // date format: DD (e.g., "21")
-  return fetchAPI(`/schedule?date=${encodeURIComponent(date)}`);
+export const getSchedule = async (date, options = {}) => {
+  const endpoint = `/schedule?date=${encodeURIComponent(date)}`;
+  const cacheKey = `anime_schedule_${generateRequestKey('schedule', { date })}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    5 * 60 * 1000
+  );
 };
 
-// Get next episode schedule for an anime
-export const getNextEpisode = async (animeId) => {
-  return fetchAPI(`/schedule/next/${encodeURIComponent(animeId)}`);
+export const getNextEpisode = async (animeId, options = {}) => {
+  const endpoint = `/schedule/next/${encodeURIComponent(animeId)}`;
+  const cacheKey = `anime_next_ep_${generateRequestKey('nextEpisode', { animeId })}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    5 * 60 * 1000
+  );
 };
 
-// ==================== CHARACTERS & ACTORS ====================
+// ==================== CHARACTERS ====================
 
-// Get characters for an anime
-export const getCharacters = async (id, page = 1) => {
-  return fetchAPI(`/characters/${encodeURIComponent(id)}?page=${page}`);
+export const getCharacters = async (id, page = 1, options = {}) => {
+  const endpoint = `/characters/${encodeURIComponent(id)}?page=${page}`;
+  const cacheKey = `anime_characters_${generateRequestKey('characters', { id, page })}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    10 * 60 * 1000 // 10 minute cache for characters
+  );
 };
 
-// Get character details
-export const getCharacterDetails = async (characterId) => {
-  // id format: character:name-id
-  return fetchAPI(`/character/${encodeURIComponent(characterId)}`);
+export const getCharacterDetails = async (characterId, options = {}) => {
+  const endpoint = `/character/${encodeURIComponent(characterId)}`;
+  const cacheKey = `anime_character_${generateRequestKey('character', { characterId })}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    10 * 60 * 1000
+  );
 };
 
-// Get voice actor details
-export const getActorDetails = async (actorId) => {
-  // id format: people:name-id
-  return fetchAPI(`/actor/${encodeURIComponent(actorId)}`);
+export const getActorDetails = async (actorId, options = {}) => {
+  const endpoint = `/actor/${encodeURIComponent(actorId)}`;
+  const cacheKey = `anime_actor_${generateRequestKey('actor', { actorId })}`;
+  
+  return getOrCreateRequest(
+    cacheKey,
+    async ({ signal }) => {
+      return trackedFetch(`${API_ROOT}${endpoint}`, {
+        ...options,
+        signal,
+        cacheKey,
+      });
+    },
+    10 * 60 * 1000
+  );
 };
 
-// Extract episodes from different API response formats
+// ==================== UTILITY FUNCTIONS ====================
+
 export function extractEpisodes(data, provider) {
   if (!data) return [];
 
-  // Handle hianime-scrap format: {success, data: [...episodes]}
-  // Episodes have: id, title, alternativeTitle, isFiller, episodeNumber, number
+  // Handle hianime-scrap format
   if (provider === 'hianime-scrap' && data && data.data && Array.isArray(data.data)) {
     return data.data.map((ep, index) => ({
       id: ep.id || `${index + 1}`,
@@ -445,7 +1106,6 @@ export function extractEpisodes(data, provider) {
     }));
   }
 
-  // Handle different response structures
   if (Array.isArray(data)) {
     return data.map((ep, index) => ({
       id: ep.id || ep.episodeId || `${index + 1}`,
@@ -473,16 +1133,11 @@ export function extractEpisodes(data, provider) {
   return [];
 }
 
-// Normalize anime data from different API response formats
 export function normalizeAnimeData(data, id, provider) {
-  // Handle different response structures
-
-  // Handle hianime-scrap format: {success, data: {...anime details...}}
   if (data && data.data && provider === 'hianime-scrap') {
     return {
       ...data.data,
       id: data.data.id || id,
-      // Map hianime-scrap fields to standard format
       title: data.data.title,
       poster: data.data.poster,
       image: data.data.poster,
@@ -495,45 +1150,35 @@ export function normalizeAnimeData(data, id, provider) {
   }
 
   if (Array.isArray(data)) {
-    // Response is an array - take first item if it matches ID
     const match = data.find(item => item && item.id === id) || data[0];
     if (match) return { ...match, id: match.id || id };
     return { id, episodes: [] };
   }
 
   if (data && data.results && Array.isArray(data.results)) {
-    // Response has results wrapper
     const match = data.results.find(item => item && item.id === id) || data.results[0];
     if (match) return { ...match, id: match.id || id };
     return { ...data, id: data.id || id };
   }
 
   if (data && data.data) {
-    // Response has data wrapper (common in REST APIs)
     return { ...data.data, id: data.data.id || id };
   }
 
-  // Return data as-is if it looks like anime object
   if (data && (data.title || data.name || data.englishName)) {
     return { ...data, id: data.id || id };
   }
 
-  // Fallback - return data with provided ID
   return { id, ...(data || {}) };
 }
 
-// ==================== UTILITY FUNCTIONS ====================
-
-// Get poster URL with fallback
 export const getPosterUrl = (poster) => {
   if (!poster) return 'https://via.placeholder.com/300x450?text=No+Image';
   if (poster.startsWith('http')) return poster;
   return poster;
 };
 
-// Parse anime ID from various formats
 export const parseAnimeId = (id) => {
-  // Handle cases like "steinsgate-3::ep=213"
   if (id.includes('::ep=')) {
     const [animeId, episodePart] = id.split('::ep=');
     return {
@@ -544,12 +1189,14 @@ export const parseAnimeId = (id) => {
   return { animeId: id, episodeNumber: null };
 };
 
-// Build episode ID format
 export const buildEpisodeId = (animeId, episodeNumber) => {
   return `${animeId}::ep=${episodeNumber}`;
 };
 
-// ==================== DEFAULT EXPORT ====================
+// Export cache utilities for debugging
+export { cancelRequest, clearCache, getCachedResponse, setCacheResponse };
+
+// ==================== EXPORT ====================
 
 export default {
   // Home & Discovery
@@ -574,7 +1221,6 @@ export default {
   getProxiedSubtitleUrl,
   
   // Browse
-
   browseByQuery,
   browseByGenre,
   browseByLetter,
@@ -595,7 +1241,13 @@ export default {
   parseAnimeId,
   buildEpisodeId,
   buildUrl,
-  safeFetch,
   extractEpisodes,
   normalizeAnimeData,
+  
+  // Retry Configuration
+  retryConfig,
+  setRetryConfig,
+  getRetryConfig,
+  fetchWithRetry,
 };
+

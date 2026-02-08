@@ -8,15 +8,14 @@ import {
 } from 'react-icons/fi'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
-  buildUrl,
+  getAnimeDetails,
   getCharacters,
   getEpisodes,
   getNextEpisode,
   getPosterUrl,
   getServers,
   getStreamLink,
-  normalizeAnimeData,
-  safeFetch
+  normalizeAnimeData
 } from '../services/anime'
 
 const AnimeDetailsPage = () => {
@@ -39,23 +38,22 @@ const AnimeDetailsPage = () => {
   const [showServers, setShowServers] = useState(false)
   const [nextEpisodeTime, setNextEpisodeTime] = useState(null)
   const [expandedDescription, setExpandedDescription] = useState(false)
-const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
+
   // --- Fetch Anime Data ---
-  const fetchDetails = useCallback(async () => {
+  const fetchDetails = useCallback(async (signal) => {
     setLoading(true)
     setError(null)
     try {
-      let infoUrl = buildUrl(provider, 'info', { id });
-      infoUrl = `${PROXY_BASE}${infoUrl}`
-      console.log('Info URL:', infoUrl);
-      const data = await safeFetch(infoUrl);
-
+      const detailsData = await getAnimeDetails(id, { signal })
+      
       // Normalize anime data structure
-      let animeData = normalizeAnimeData(data, id, provider);
+      let animeData = normalizeAnimeData(detailsData, id, provider);
+      animeData.__provider = provider;
+      setDetails(animeData);
 
       // Always fetch episodes separately to get real episode IDs
       try {
-        const episodesResponse = await getEpisodes(id, provider);
+        const episodesResponse = await getEpisodes(id, provider, { signal });
         const extractedEpisodes = episodesResponse.data || [];
         
         setEpisodes(extractedEpisodes);
@@ -76,15 +74,21 @@ const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
         }
       }
 
-      animeData.__provider = provider;
-      setDetails(animeData);
-
-      // Parallel fetch for secondary info
-      Promise.allSettled([
-        getCharacters(id, 1).then(res => setCharacters(res.data?.response || [])),
-        getNextEpisode(id).then(res => setNextEpisodeTime(res.data?.time || null))
-      ])
+      // Parallel fetch for secondary info (non-blocking)
+      getCharacters(id, 1).then(res => {
+        if (res.data?.response) {
+          setCharacters(res.data.response);
+        }
+      }).catch(() => {/* Ignore character errors */});
+      
+      getNextEpisode(id).then(res => {
+        if (res.data?.time) {
+          setNextEpisodeTime(res.data.time);
+        }
+      }).catch(() => {/* Ignore next episode errors */});
+      
     } catch (err) {
+      if (err.message === 'Request cancelled') return;
       setError(err.message || 'Failed to load anime details')
     } finally {
       setLoading(false)
@@ -92,7 +96,7 @@ const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
   }, [id, provider])
 
   // --- Fetch Streaming Links ---
-  const fetchStream = useCallback(async () => {
+  const fetchStream = useCallback(async (signal) => {
     if (!id || !selectedEpisode || episodes.length === 0) return
     setLoadingStream(true)
     try {
@@ -101,7 +105,7 @@ const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
       const episodeId = currentEpData?.id || `${id}::ep=${selectedEpisode}`
 
       if (provider === 'hianime-scrap') {
-        const serversResponse = await getServers(episodeId)
+        const serversResponse = await getServers(episodeId, { signal })
         const serversData = serversResponse.data || serversResponse
 
         if (serversData) {
@@ -109,12 +113,12 @@ const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
           const available = serversData[selectedType] || serversData.sub || []
           if (available.length > 0) {
             setSelectedServer(available[0])
-            await getStreamLink(episodeId, available[0].name, selectedType, provider)
+            await getStreamLink(episodeId, available[0].name, selectedType, provider, { signal })
           }
         }
       } else {
         // For animekai and animepahe, get stream directly
-        const streamResponse = await getStreamLink(episodeId, '', selectedType, provider)
+        const streamResponse = await getStreamLink(episodeId, '', selectedType, provider, { signal })
         if (streamResponse.data) {
           setServers({ sub: streamResponse.data.sources || [], dub: [] })
           const available = streamResponse.data.sources || []
@@ -124,14 +128,51 @@ const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
         }
       }
     } catch (err) {
+      if (err.message === 'Request cancelled') return;
       console.error('Stream error:', err)
     } finally {
       setLoadingStream(false)
     }
-  }, [id, selectedEpisode, selectedType, provider])
+  }, [id, selectedEpisode, selectedType, provider, episodes])
 
-  useEffect(() => { fetchDetails() }, [fetchDetails])
-  useEffect(() => { if (details) fetchStream() }, [details, selectedEpisode, fetchStream])
+  // --- Effects with proper cleanup ---
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    let detailsFetched = false;
+
+    const loadDetails = async () => {
+      if (detailsFetched) return;
+      detailsFetched = true;
+      await fetchDetails(controller.signal);
+    };
+
+    loadDetails();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [fetchDetails]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    
+    const loadStream = async () => {
+      if (!details) return;
+      await fetchStream(controller.signal);
+    };
+
+    // Debounce stream loading
+    const timeoutId = setTimeout(loadStream, 300);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [fetchStream, details, selectedEpisode]);
 
   const navigate = useNavigate()
 
@@ -320,3 +361,4 @@ const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
 }
 
 export default AnimeDetailsPage
+

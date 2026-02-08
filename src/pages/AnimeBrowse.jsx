@@ -1,24 +1,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-    FiCalendar,
-    FiClock,
-    FiHeart,
-    FiInfo,
-    FiList,
-    FiPlay,
-    FiSearch,
-    FiStar,
-    FiTrendingUp,
-    FiX
+  FiCalendar,
+  FiClock,
+  FiHeart,
+  FiInfo,
+  FiList,
+  FiPlay,
+  FiSearch,
+  FiStar,
+  FiTrendingUp,
+  FiX
 } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { AnimeCarousel } from '../components/movie/AnimeCarousel'
 import { SkeletonHero, SkeletonRow } from '../components/ui/Skeleton'
 import {
-    browseByQuery,
-    getHomeData,
-    getPosterUrl,
-    searchAnime
+  browseByQuery,
+  getHomeData,
+  getPosterUrl,
+  searchAnime
 } from '../services/anime'
 
 // API Base
@@ -67,14 +67,22 @@ const AnimeBrowsePage = () => {
   const [selectedProvider, setSelectedProvider] = useState('hianime-scrap')
   const [showFilters, setShowFilters] = useState(false)
 
-  // Fetch home data and spotlight on page load
+  // Fetch home data and spotlight on page load - with proper cleanup to prevent duplicates
   useEffect(() => {
+    let isMounted = true;
+    let homeFetched = false;
+
     const fetchData = async () => {
+      if (homeFetched) return;
+      homeFetched = true;
+
       try {
         setLoading(true)
         setError(null)
         
         const home = await getHomeData()
+        
+        if (!isMounted) return;
         
         // Extract data from the nested structure: home.data.spotlight, home.data.trending, etc.
         const homeData = home.data || {}
@@ -121,14 +129,19 @@ const AnimeBrowsePage = () => {
           },
         })
       } catch (err) {
+        if (!isMounted) return;
         console.error('Home data error:', err)
         setError('Failed to load anime data')
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
 
     fetchData()
+
+    return () => {
+      isMounted = false;
+    };
   }, [])
 
   // Handle category selection

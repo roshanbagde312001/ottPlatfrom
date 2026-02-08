@@ -70,15 +70,27 @@ const AnimePlayerPage = () => {
   const [showEpisodes, setShowEpisodes] = useState(false)
   const [showServers, setShowServers] = useState(false)
 
-  // Fetch anime details and episodes
+  // Fetch anime details and episodes - with proper cleanup to prevent duplicates
   useEffect(() => { 
+    let isMounted = true;
+    const controller = new AbortController();
+    let episodesFetched = false;
+    
     const fetchAnimeDetails = async () => {
       try {
         setLoading(true)
-        const detailsData = await getAnimeDetails(id)
+        const detailsData = await getAnimeDetails(id, { signal: controller.signal })
+        
+        if (!isMounted) return;
         setAnime(detailsData.data)
         
-        const episodesData = await getEpisodes(id, selectedProvider)
+        // Only fetch episodes if we haven't already for this ID/provider
+        if (episodesFetched) return;
+        
+        const episodesData = await getEpisodes(id, selectedProvider, { signal: controller.signal })
+        
+        if (!isMounted) return;
+        episodesFetched = true;
         
         if (episodesData && episodesData.data) {
           setEpisodesList(episodesData.data)
@@ -91,7 +103,7 @@ const AnimePlayerPage = () => {
           }))
           setEpisodes(eps)
         } else {
-          const totalEps = detailsData.data.episodes?.eps || 0
+          const totalEps = detailsData.data?.episodes?.eps || 0
           if (totalEps > 0) {
             const eps = Array.from({ length: totalEps }, (_, i) => ({
               number: i + 1,
@@ -101,25 +113,40 @@ const AnimePlayerPage = () => {
           }
         }
       } catch (err) {
+        if (err.message === 'Request cancelled' || !isMounted) return;
         setError(err.message || 'Failed to load anime')
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
     
     fetchAnimeDetails()
+    
+    return () => {
+      isMounted = false;
+      controller.abort();
+    }
   }, [id, selectedProvider])
 
-  // Fetch servers
+  // Fetch servers - with proper cleanup to prevent duplicates
   useEffect(() => {
     if (!id || !currentEpisode || episodesList.length === 0) return
 
+    let isMounted = true;
+    const controller = new AbortController();
+    let serversFetched = false;
+
     const fetchServers = async () => {
+      if (serversFetched) return;
+      
       try {
         const currentEpData = episodesList.find(ep => ep.number === currentEpisode)
         const episodeId = currentEpData?.id || `${id}::ep=${currentEpisode}`
         
-        const serversData = await getServers(episodeId)
+        const serversData = await getServers(episodeId, { signal: controller.signal })
+        
+        if (!isMounted) return;
+        serversFetched = true;
         
         if (serversData && serversData.data) {
           const serverData = serversData.data
@@ -137,25 +164,40 @@ const AnimePlayerPage = () => {
           }
         }
       } catch (err) {
+        if (err.message === 'Request cancelled' || !isMounted) return;
         console.error('Error fetching servers:', err)
       }
     }
 
     fetchServers()
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    }
   }, [id, currentEpisode, selectedProvider, episodesList])
 
-  // Fetch stream
+  // Fetch stream - with proper cleanup to prevent duplicates
   useEffect(() => {
     if (!id || !currentEpisode || !selectedServer || episodesList.length === 0) return
 
+    let isMounted = true;
+    const controller = new AbortController();
+    let streamFetched = false;
+
     const fetchStream = async () => {
+      if (streamFetched) return;
+      
       setLoadingStream(true)
       try {
         const currentEpData = episodesList.find(ep => ep.number === currentEpisode)
         const episodeId = currentEpData?.id || `${id}::ep=${currentEpisode}`
         const serverName = selectedServer.name || selectedServer
         
-        const streamResponse = await getStreamLink(episodeId, serverName, selectedType, selectedProvider)
+        const streamResponse = await getStreamLink(episodeId, serverName, selectedType, selectedProvider, { signal: controller.signal })
+        
+        if (!isMounted) return;
+        streamFetched = true;
         
         if (streamResponse && streamResponse.data) {
           setStreamData(streamResponse.data)
@@ -171,14 +213,20 @@ const AnimePlayerPage = () => {
           setError('Failed to load stream data')
         }
       } catch (err) {
+        if (err.message === 'Request cancelled' || !isMounted) return;
         setError(`Failed to load stream: ${err.message}`)
       } finally {
-        setLoadingStream(false)
+        if (isMounted) setLoadingStream(false)
       }
     }
 
     fetchStream()
-  }, [id, currentEpisode, selectedType, selectedServer, episodeData, episodesList])
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    }
+  }, [id, currentEpisode, selectedType, selectedServer, episodesList])
 
   const handleEpisodeChange = (episodeNum) => {
     setCurrentEpisode(episodeNum)
