@@ -13,9 +13,10 @@ import WatchlistPage from './pages/Watchlist'
 // App Component
 function App() {
   return (
+    
     <Routes>
       {/* Layout Route */}
-      <Route path="/" element={<Layout />}>
+      <Route path="/ottPlatfrom" element={<Layout />}>
         {/* Home Page */}
         <Route index element={<HomePage />} />
         
