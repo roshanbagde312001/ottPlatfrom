@@ -201,7 +201,8 @@ const MoviePlayerPage = () => {
                     title={movie.title || movie.name}
                     style={{ width: '100%', height: '100%' }}
                     frameBorder="0"
-                    referrerPolicy="origin"
+                    referrerPolicy="no-referrer"
+  allow="autoplay; fullscreen; encrypted-media"
                     allowFullScreen
                   />
                 )
@@ -211,11 +212,12 @@ const MoviePlayerPage = () => {
                   <PlayerError error={watchError} />
                 ) : (
                   <iframe
-                    src={getManualVidsrcUrl()}
+                  src={getManualVidsrcUrl()}
                     title={movie.title || movie.name}
                     style={{ width: '100%', height: '100%' }}
                     frameBorder="0"
-                    referrerPolicy="origin"
+                   referrerPolicy="no-referrer"
+  allow="autoplay; fullscreen; encrypted-media"
                     allowFullScreen
                   />
                 )
@@ -224,7 +226,8 @@ const MoviePlayerPage = () => {
                   src={selectedProvider.link}
                   title={movie.title || movie.name}
                   className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                 referrerPolicy="no-referrer"
+  allow="autoplay; fullscreen; encrypted-media"
                   allowFullScreen
                 />
               ) : (
