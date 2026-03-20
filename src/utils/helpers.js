@@ -246,16 +246,14 @@ export const formatPrice = (price) => {
 }
 
 // vidsrc embed URL generator
-export const getVidsrcEmbedUrl = (imdbId, type = 'movie', season = 1, episode = 1) => {
-  if (!imdbId) return null
-  
-  // Ensure IMDB ID format (tt + numbers)
-  const formattedId = imdbId.startsWith('tt') ? imdbId : `tt${imdbId}`
-  const unformattedId = imdbId.replace("tt","")
-  
+// Movies use IMDb ids, while TV episodes use TMDB ids on this provider.
+export const getVidsrcEmbedUrl = (contentId, type = 'movie', season = 1, episode = 1) => {
+  if (!contentId) return null
+
   if (type === 'tv') {
-    return `https://vidsrc-embed.ru/embed/tv?tmdb=${unformattedId}&season=${season}&episode=${episode}`
+    return `https://vidsrc-embed.ru/embed/tv?tmdb=${contentId}&season=${season}&episode=${episode}`
   }
+
+  const formattedId = contentId.startsWith('tt') ? contentId : `tt${contentId}`
   return `https://vidsrc-embed.ru/embed/movie?imdb=${formattedId}`
 }
-

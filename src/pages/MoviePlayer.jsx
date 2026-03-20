@@ -117,11 +117,14 @@ const MoviePlayerPage = () => {
   
   // Get vidsrcme.ru embed URL
   const getVidsrcUrl = () => {
-    if (!movie?.imdb_id) {
-      setWatchError('IMDB ID not found for this content')
+    const contentId = type === 'tv' ? movie?.id : movie?.imdb_id
+
+    if (!contentId) {
+      setWatchError(type === 'tv' ? 'TMDB ID not found for this content' : 'IMDB ID not found for this content')
       return null
     }
-    const url = getVidsrcEmbedUrl(movie.imdb_id, type, vidsrcSeason, vidsrcEpisode)
+
+    const url = getVidsrcEmbedUrl(contentId, type, vidsrcSeason, vidsrcEpisode)
     if (!url) {
       setWatchError('Failed to generate streaming URL')
     }
@@ -154,12 +157,14 @@ const MoviePlayerPage = () => {
   
   // Get vidsrc URL with manual IMDB support
   const getManualVidsrcUrl = () => {
-    const imdbId = movie?.manual_imdb_id || manualImdbId
-    if (!imdbId) {
-      setWatchError('IMDB ID is required')
+    const contentId = type === 'tv' ? movie?.id : (movie?.manual_imdb_id || manualImdbId)
+
+    if (!contentId) {
+      setWatchError(type === 'tv' ? 'TMDB ID is required' : 'IMDB ID is required')
       return null
     }
-    return getVidsrcEmbedUrl(imdbId, type, vidsrcSeason, vidsrcEpisode)
+
+    return getVidsrcEmbedUrl(contentId, type, vidsrcSeason, vidsrcEpisode)
   }
   
   // Handle external link

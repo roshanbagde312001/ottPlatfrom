@@ -453,7 +453,7 @@ const MovieDetailsPage = () => {
                       </p>
                       <div className="flex gap-3">
                         <a
-                          href={`https://vidsrc-embed.ru/embed/tv?tmdb=${details.imdb_id.startsWith('tt') ? details.imdb_id : `tt${details.imdb_id}`}&season=${selectedSeason}&episode=${selectedEpisode}`}
+                          href={`https://vidsrc-embed.ru/embed/tv?tmdb=${details.id}&season=${selectedSeason}&episode=${selectedEpisode}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors"
@@ -597,4 +597,3 @@ const MovieDetailsPage = () => {
 }
 
 export default MovieDetailsPage
-
