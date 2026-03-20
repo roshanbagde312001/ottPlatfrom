@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { FiArrowLeft, FiExternalLink, FiMonitor, FiPlay } from 'react-icons/fi'
+import { useEffect, useRef, useState } from 'react'
+import { FiArrowLeft, FiExternalLink, FiMaximize, FiMonitor, FiMinimize, FiPlay } from 'react-icons/fi'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Skeleton } from '../components/ui/Skeleton'
 import * as tmdbService from '../services/tmdb'
@@ -45,6 +45,8 @@ const MoviePlayerPage = () => {
   const [watchError, setWatchError] = useState(null)
   const [manualImdbId, setManualImdbId] = useState(id)
   const [showManualInput, setShowManualInput] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const playerContainerRef = useRef(null)
   
   
   useEffect(() => {
@@ -100,6 +102,18 @@ const MoviePlayerPage = () => {
       fetchData()
     }
   }, [id, type, searchParams])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
   
   // Get vidsrcme.ru embed URL
   const getVidsrcUrl = () => {
@@ -154,6 +168,23 @@ const MoviePlayerPage = () => {
       window.open(selectedProvider.link, '_blank')
     }
   }
+
+  const toggleFullscreen = async () => {
+    const playerElement = playerContainerRef.current
+
+    if (!playerElement) return
+
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      } else {
+        await playerElement.requestFullscreen()
+      }
+    } catch (err) {
+      console.error('Failed to toggle fullscreen:', err)
+      setWatchError('Fullscreen is not available in this browser for the current player.')
+    }
+  }
   
   // Go back
   const handleBack = () => {
@@ -190,7 +221,18 @@ const MoviePlayerPage = () => {
         <div className="container mx-auto px-4 py-20">
           <div className="max-w-6xl mx-auto">
             {/* Embedded Player */}
-            <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden mb-6">
+            <div
+              ref={playerContainerRef}
+              className={`relative aspect-video bg-gray-900 overflow-hidden mb-6 ${isFullscreen ? 'rounded-none' : 'rounded-lg'}`}
+            >
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="absolute top-4 right-4 z-10 inline-flex items-center gap-2 rounded-md bg-black/60 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-black/80"
+              >
+                {isFullscreen ? <FiMinimize size={16} /> : <FiMaximize size={16} />}
+                <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+              </button>
               {selectedProvider.provider_id === 999999 ? (
                 // vidsrc-embed.ru iframe
                 watchError ? (
@@ -202,8 +244,10 @@ const MoviePlayerPage = () => {
                     style={{ width: '100%', height: '100%' }}
                     frameBorder="0"
                     referrerPolicy="no-referrer"
-  allow="autoplay; fullscreen; encrypted-media"
+                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                     allowFullScreen
+                    webkitAllowFullScreen
+                    mozAllowFullScreen
                   />
                 )
               ) : selectedProvider.provider_id === 999998 ? (
@@ -212,13 +256,15 @@ const MoviePlayerPage = () => {
                   <PlayerError error={watchError} />
                 ) : (
                   <iframe
-                  src={getManualVidsrcUrl()}
+                    src={getManualVidsrcUrl()}
                     title={movie.title || movie.name}
                     style={{ width: '100%', height: '100%' }}
                     frameBorder="0"
-                   referrerPolicy="no-referrer"
-  allow="autoplay; fullscreen; encrypted-media"
+                    referrerPolicy="no-referrer"
+                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                     allowFullScreen
+                    webkitAllowFullScreen
+                    mozAllowFullScreen
                   />
                 )
               ) : selectedProvider.link ? (
@@ -226,9 +272,11 @@ const MoviePlayerPage = () => {
                   src={selectedProvider.link}
                   title={movie.title || movie.name}
                   className="w-full h-full"
-                 referrerPolicy="no-referrer"
-  allow="autoplay; fullscreen; encrypted-media"
+                  referrerPolicy="no-referrer"
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                   allowFullScreen
+                  webkitAllowFullScreen
+                  mozAllowFullScreen
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -770,4 +818,3 @@ const truncateText = (text, maxLength) => {
 }
 
 export default MoviePlayerPage
-
