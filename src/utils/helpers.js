@@ -251,9 +251,9 @@ export const getVidsrcEmbedUrl = (contentId, type = 'movie', season = 1, episode
   if (!contentId) return null
 
   if (type === 'tv') {
-    return `https://vidsrc-embed.ru/embed/tv?tmdb=${contentId}&season=${season}&episode=${episode}`
+    return `https://vidsrc.to/embed/tv?tmdb=${contentId}&season=${season}&episode=${episode}`
   }
 
   const formattedId = contentId.startsWith('tt') ? contentId : `tt${contentId}`
-  return `https://vidsrc-embed.ru/embed/movie?imdb=${formattedId}`
+  return `https://vidsrc.to/embed/movie?imdb=${formattedId}`
 }
